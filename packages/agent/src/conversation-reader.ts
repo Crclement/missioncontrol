@@ -2,7 +2,6 @@ import { open } from "fs/promises";
 import { join } from "path";
 import type { ConversationState, TokenUsage } from "@missioncontrol/shared";
 
-// Model pricing (per token, in USD)
 const PRICING = {
   inputPerToken: 3 / 1_000_000,
   outputPerToken: 15 / 1_000_000,
@@ -13,11 +12,14 @@ const PRICING = {
 const CONTEXT_LIMIT = 200_000;
 
 function cwdToProjectPath(cwd: string): string {
-  return cwd
-    .replace(/^\//, "")
-    .replace(/\//g, "-")
-    .replace(/ /g, "-")
-    .replace(/\./g, "-");
+  return (
+    "-" +
+    cwd
+      .replace(/^\//g, "")
+      .replace(/\//g, "-")
+      .replace(/ /g, "-")
+      .replace(/\./g, "-")
+  );
 }
 
 function extractJsonObjects(text: string): unknown[] {
@@ -42,7 +44,7 @@ function defaultState(): ConversationState {
     lastUserMessage: "",
     lastAssistantText: "",
     lastMessageRole: "user",
-    needsInput: true,
+    needsInput: false, // Default to NOT needing input (assume working)
     messageCount: 0,
   };
 }
@@ -66,7 +68,6 @@ export async function readConversation(
     const stat = await fh.stat();
     const fileSize = stat.size;
 
-    // Read only the last 50KB
     const readSize = Math.min(50 * 1024, fileSize);
     const position = fileSize - readSize;
     const buffer = Buffer.alloc(readSize);
@@ -79,10 +80,9 @@ export async function readConversation(
     let lastAssistantText = "";
     let lastMessageRole: "user" | "assistant" = "user";
     let lastToolUse: string | undefined;
-    let needsInput = true;
+    let needsInput = false;
     let messageCount = 0;
 
-    // Token usage accumulators
     let inputTokens = 0;
     let outputTokens = 0;
     let cacheCreationTokens = 0;
@@ -90,34 +90,52 @@ export async function readConversation(
 
     for (const obj of objects) {
       const type = obj.type as string | undefined;
-      const role = obj.role as string | undefined;
 
-      if (type === "user" || role === "user") {
+      // Skip non-message entries (file-history-snapshot, etc.)
+      if (type !== "user" && type !== "assistant") continue;
+
+      // The actual message payload is nested inside obj.message
+      const msg = obj.message as Record<string, unknown> | undefined;
+
+      if (type === "user") {
         messageCount++;
         lastMessageRole = "user";
-        // Extract text content
-        const content = obj.content ?? obj.message;
+        needsInput = false; // User just sent something, so not waiting
+
+        // User content can be a string or nested in message.content
+        const content = msg?.content ?? obj.content;
         if (typeof content === "string") {
           lastUserMessage = content;
         } else if (Array.isArray(content)) {
-          const textPart = (content as Record<string, unknown>[]).find(
-            (c) => c.type === "text"
-          );
-          if (textPart && typeof textPart.text === "string") {
-            lastUserMessage = textPart.text;
+          // Find text parts (skip tool_result blocks)
+          for (const part of content as Record<string, unknown>[]) {
+            if (part.type === "text" && typeof part.text === "string") {
+              lastUserMessage = part.text;
+            }
+            // Also check for direct text in tool_result content
+            if (part.type === "tool_result" && typeof part.content === "string") {
+              // Tool results aren't user messages, skip
+            }
           }
         }
       }
 
-      if (type === "assistant" || role === "assistant") {
+      if (type === "assistant") {
         messageCount++;
         lastMessageRole = "assistant";
         lastToolUse = undefined;
 
-        const stopReason = (obj.stop_reason ?? (obj as Record<string, unknown>).stopReason) as string | undefined;
+        // stop_reason is on the nested message object
+        const stopReason = (
+          msg?.stop_reason ?? msg?.stopReason ??
+          obj.stop_reason ?? (obj as Record<string, unknown>).stopReason
+        ) as string | undefined;
+
+        // Only needs input when the assistant is done talking (end_turn)
+        // NOT when it's using tools (tool_use) or still streaming
         needsInput = stopReason === "end_turn";
 
-        const content = obj.content ?? obj.message;
+        const content = msg?.content ?? obj.content;
         if (typeof content === "string") {
           lastAssistantText = content;
         } else if (Array.isArray(content)) {
@@ -127,12 +145,14 @@ export async function readConversation(
             }
             if (block.type === "tool_use" && typeof block.name === "string") {
               lastToolUse = block.name;
+              // If the last content block is a tool_use, assistant is working
+              needsInput = false;
             }
           }
         }
 
-        // Extract token usage
-        const usage = obj.usage as Record<string, number> | undefined;
+        // Extract token usage from the nested message
+        const usage = (msg?.usage ?? obj.usage) as Record<string, number> | undefined;
         if (usage) {
           inputTokens += usage.input_tokens ?? 0;
           outputTokens += usage.output_tokens ?? 0;
@@ -163,7 +183,7 @@ export async function readConversation(
             cacheReadTokens,
             totalTokens,
             estimatedCostUsd,
-            burnRatePerMinute: 0, // Calculated by server with timing info
+            burnRatePerMinute: 0,
             contextPercentUsed,
           }
         : undefined;
