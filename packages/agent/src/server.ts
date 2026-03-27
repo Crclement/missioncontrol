@@ -101,7 +101,7 @@ async function enrichSession(
     sessionId: raw.sessionId,
     cwd: raw.cwd,
     startedAt: raw.startedAt,
-    name: raw.name ?? terminalTitle,
+    name: raw.name, // Don't use terminalTitle as fallback — it's generic ("Chrisclement — Zsh — 80×24")
     terminalTitle,
     configDir,
     alive: true,

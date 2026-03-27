@@ -8,10 +8,11 @@ interface ResponseInputProps {
   onSend: (message: string) => void
   autoFocus?: boolean
   voiceMode?: boolean
+  initialChar?: string
 }
 
-export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputProps) {
-  const [value, setValue] = useState("")
+export function ResponseInput({ onSend, autoFocus, voiceMode, initialChar }: ResponseInputProps) {
+  const [value, setValue] = useState(initialChar ?? "")
   const [sendState, setSendState] = useState<SendState>("idle")
   const [typing, setTyping] = useState(!voiceMode)
   const textareaRef = useRef<HTMLTextAreaElement>(null)

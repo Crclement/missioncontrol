@@ -12,16 +12,32 @@ interface SessionCardProps {
   isFocused: boolean
   inputOpen: boolean
   voiceMode: boolean
+  initialChar?: string
   onSendResponse: (sessionId: string, configDir: string, message: string) => void
   onSelect: (index: number) => void
 }
 
-function humanizeTitle(raw: string): string {
+function humanizeSlug(raw: string): string {
   return raw
     .replace(/^claude-code-/, "")
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    // Split on hyphens, dots, underscores
+    .split(/[-._]+/)
+    .filter(Boolean)
+    .map((w) => {
+      // Keep version numbers and short acronyms as-is
+      if (/^\d/.test(w) || /^v\d/i.test(w)) return w
+      return w.charAt(0).toUpperCase() + w.slice(1)
+    })
     .join(" ")
+}
+
+function getTitle(session: EnrichedSession): string {
+  // Best: session name from Claude Code (if set and not generic)
+  if (session.name) return humanizeSlug(session.name)
+  // Fallback: project directory name
+  const dirName = session.cwd.split("/").pop() ?? ""
+  if (dirName) return humanizeSlug(dirName)
+  return session.sessionId.slice(0, 8)
 }
 
 function getSummary(session: EnrichedSession): string {
@@ -55,7 +71,7 @@ function getStatusInfo(session: EnrichedSession): { label: string; isWorking: bo
 }
 
 export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
-  function SessionCard({ session, index, isFocused, inputOpen, voiceMode, onSendResponse, onSelect }, ref) {
+  function SessionCard({ session, index, isFocused, inputOpen, voiceMode, initialChar, onSendResponse, onSelect }, ref) {
     const prevNeedsInputRef = useRef(session.conversation.needsInput)
     const needsInput = session.conversation.needsInput
 
@@ -73,7 +89,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
 
     const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
     const branchName = session.git?.branch ?? ""
-    const sessionName = humanizeTitle(session.name ?? "") || session.sessionId.slice(0, 8)
+    const sessionName = getTitle(session)
     const summary = getSummary(session)
     const { label: statusLabel, isWorking } = getStatusInfo(session)
 
@@ -174,10 +190,15 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
               onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
               autoFocus
               voiceMode={voiceMode}
+              initialChar={initialChar}
             />
-          ) : isFocused ? (
+          ) : isFocused && needsInput ? (
             <div className="mt-3 text-sm font-mono font-bold animate-blink" style={{ color: "#fff" }}>
-              ◆ Spacebar to speak · Enter to type
+              ◆ Spacebar to speak ...or start typing
+            </div>
+          ) : isFocused ? (
+            <div className="mt-3 text-xs font-mono" style={{ color: "#666" }}>
+              Enter to open in terminal
             </div>
           ) : null}
         </div>

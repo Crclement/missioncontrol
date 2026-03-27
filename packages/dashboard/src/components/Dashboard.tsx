@@ -27,6 +27,7 @@ export function Dashboard() {
     inputOpen,
     voiceMode,
     viewMode,
+    initialChar,
     setShowHelp,
     setViewMode,
     setFocusedIndex,
@@ -34,6 +35,15 @@ export function Dashboard() {
     sessionCount: count,
     cols,
     onReconnect: reconnect,
+    sessionNeedsInput: (i) => sortedSessions[i]?.conversation.needsInput ?? false,
+    onEnterSession: (i) => {
+      // Open the terminal tab for this session's project
+      const session = sortedSessions[i]
+      if (!session) return
+      const cwd = session.cwd
+      // Use osascript to activate the Terminal window for this project
+      fetch(`/api/open-terminal?cwd=${encodeURIComponent(cwd)}`).catch(() => {})
+    },
   })
 
   useEffect(() => {
@@ -104,6 +114,7 @@ export function Dashboard() {
                   isFocused={focusedIndex === i}
                   inputOpen={inputOpen && focusedIndex === i}
                   voiceMode={voiceMode}
+                  initialChar={focusedIndex === i ? initialChar : ""}
                   onSendResponse={sendResponse}
                   onSelect={setFocusedIndex}
                 />

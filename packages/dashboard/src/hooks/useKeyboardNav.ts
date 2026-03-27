@@ -8,14 +8,17 @@ interface UseKeyboardNavOptions {
   sessionCount: number
   cols: number
   onReconnect: () => void
+  onEnterSession?: (index: number) => void
+  sessionNeedsInput?: (index: number) => boolean
 }
 
-export function useKeyboardNav({ sessionCount, cols, onReconnect }: UseKeyboardNavOptions) {
+export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession, sessionNeedsInput }: UseKeyboardNavOptions) {
   const [focusedIndex, setFocusedIndex] = useState<number>(-1)
   const [showHelp, setShowHelp] = useState(false)
   const [inputOpen, setInputOpen] = useState(false)
   const [voiceMode, setVoiceMode] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
+  const [initialChar, setInitialChar] = useState("")
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -131,23 +134,49 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect }: UseKeyboardN
         return
       }
 
-      // Spacebar = open voice input
+      // Spacebar = open voice input (only for needs-input sessions)
       if (e.key === " " && focusedIndex >= 0) {
-        e.preventDefault()
-        setInputOpen(true)
-        setVoiceMode(true)
-        return
+        const needs = sessionNeedsInput?.(focusedIndex) ?? false
+        if (needs) {
+          e.preventDefault()
+          setInputOpen(true)
+          setVoiceMode(true)
+          return
+        }
       }
 
-      // Enter = open type input
+      // Any printable character on a needs-input card = open type mode
+      if (
+        focusedIndex >= 0 &&
+        e.key.length === 1 &&
+        !e.metaKey && !e.ctrlKey && !e.altKey &&
+        e.key !== " "
+      ) {
+        const needs = sessionNeedsInput?.(focusedIndex) ?? false
+        if (needs) {
+          e.preventDefault()
+          setInputOpen(true)
+          setVoiceMode(false)
+          // Store the initial character so ResponseInput can pick it up
+          setInitialChar(e.key)
+          return
+        }
+      }
+
+      // Enter: if session needs input, open type mode. Otherwise open terminal.
       if (e.key === "Enter" && focusedIndex >= 0) {
         e.preventDefault()
-        setInputOpen(true)
-        setVoiceMode(false)
+        const needs = sessionNeedsInput?.(focusedIndex) ?? false
+        if (needs) {
+          setInputOpen(true)
+          setVoiceMode(false)
+        } else {
+          onEnterSession?.(focusedIndex)
+        }
         return
       }
     },
-    [sessionCount, cols, focusedIndex, showHelp, inputOpen, onReconnect],
+    [sessionCount, cols, focusedIndex, showHelp, inputOpen, onReconnect, onEnterSession, sessionNeedsInput],
   )
 
   useEffect(() => {
@@ -167,10 +196,12 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect }: UseKeyboardN
     inputOpen,
     voiceMode,
     viewMode,
+    initialChar,
     setShowHelp,
     setInputOpen,
     setVoiceMode,
     setFocusedIndex,
     setViewMode,
+    setInitialChar,
   }
 }
