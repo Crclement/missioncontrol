@@ -3,8 +3,6 @@
 import { forwardRef, useEffect, useRef } from "react"
 import type { EnrichedSession } from "@missioncontrol/shared"
 import { PixelCreature } from "./PixelCreature"
-import { StatusBadge } from "./StatusBadge"
-import { SubagentList } from "./SubagentList"
 import { ContextMeter } from "./ContextMeter"
 import { ResponseInput } from "./ResponseInput"
 
@@ -13,11 +11,50 @@ interface SessionCardProps {
   index: number
   isFocused: boolean
   inputOpen: boolean
+  voiceMode: boolean
   onSendResponse: (sessionId: string, configDir: string, message: string) => void
 }
 
+function getWorkSummary(session: EnrichedSession): string {
+  const { needsInput } = session.conversation
+  const { workType } = session
+  const lastToolUse = session.conversation.lastToolUse
+
+  if (needsInput) {
+    const text = session.conversation.lastAssistantText
+    if (text) {
+      return text.length > 80 ? text.slice(0, 80) + "..." : text
+    }
+    return "Awaiting your response"
+  }
+
+  if (lastToolUse) {
+    const toolMap: Record<string, string> = {
+      Edit: "Editing files...",
+      Write: "Writing files...",
+      Read: "Reading files...",
+      Bash: "Running command...",
+      Grep: "Searching code...",
+      Glob: "Finding files...",
+      ToolSearch: "Searching tools...",
+    }
+    return toolMap[lastToolUse] ?? `Using ${lastToolUse}...`
+  }
+
+  const typeMap: Record<string, string> = {
+    coding: "Writing code...",
+    exploring: "Exploring codebase...",
+    planning: "Planning approach...",
+    debugging: "Debugging issue...",
+    running: "Running tasks...",
+    reviewing: "Reviewing code...",
+    idle: "Idle",
+  }
+  return typeMap[workType] ?? "Working..."
+}
+
 export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
-  function SessionCard({ session, index, isFocused, inputOpen, onSendResponse }, ref) {
+  function SessionCard({ session, index, isFocused, inputOpen, voiceMode, onSendResponse }, ref) {
     const prevNeedsInputRef = useRef(session.conversation.needsInput)
     const needsInput = session.conversation.needsInput
 
@@ -42,18 +79,14 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
     const isActive = session.workType !== "idle" && !needsInput
     const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
     const branchName = session.git?.branch ?? ""
-    const sessionName = session.terminalTitle ?? session.name ?? session.sessionId.slice(0, 8)
+    const sessionName = session.name ?? session.sessionId.slice(0, 8)
     const orgLabel = session.git
       ? session.git.isPersonal
         ? "personal"
         : session.git.org ?? "org"
       : null
 
-    const lastMessage = session.conversation.lastUserMessage
-    const truncatedMessage =
-      lastMessage && lastMessage.length > 140
-        ? lastMessage.slice(0, 140) + "..."
-        : lastMessage
+    const summary = getWorkSummary(session)
 
     return (
       <div
@@ -61,61 +94,60 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
         tabIndex={-1}
         className="p-6 flex flex-col overflow-hidden transition-colors relative"
         style={{
-          backgroundColor: isActive ? "#000000" : "#ffffff",
+          backgroundColor: isActive ? "#000000" : needsInput ? "#f8f8f5" : "#ffffff",
           color: isActive ? "#ffffff" : "#000000",
-          border: needsInput ? "1px dashed #000000" : "1px solid #000000",
+          border: "1px solid #000000",
           outline: isFocused ? "2px solid #000000" : "none",
-          outlineOffset: "-3px",
-          animation: needsInput ? "pulse-border 2s ease-in-out infinite" : undefined,
+          outlineOffset: "-4px",
         }}
       >
-        {/* Number key - large bold corner */}
+        {/* Number key - large, top-left corner */}
         <div
-          className="absolute top-4 right-4 text-2xl font-mono font-bold leading-none"
+          className="absolute top-4 left-4 text-2xl font-mono font-bold leading-none"
           style={{ color: isActive ? "#333" : "#ddd" }}
         >
           {index + 1}
         </div>
 
+        {/* Pixel creature - small, top-right */}
+        <div className="absolute top-4 right-4">
+          <PixelCreature workType={session.workType} size={3} inverted={isActive} />
+        </div>
+
         {/* Title - full width, large and bold */}
-        <div className="flex items-start gap-4 mb-1 pr-10">
-          <h2 className="text-lg font-mono font-bold truncate leading-tight flex-1">
+        <div className="pl-8 pr-14 mb-1">
+          <h2 className="text-lg font-mono font-bold truncate leading-tight">
             {sessionName}
           </h2>
         </div>
 
-        {/* Repo @ branch . org */}
+        {/* One-line summary */}
         <div
-          className="flex items-center gap-2 text-sm font-mono mb-4"
+          className="pl-8 pr-14 mb-2 text-sm font-mono truncate"
           style={{ color: isActive ? "#aaa" : "#666" }}
+        >
+          {needsInput && (
+            <span
+              className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
+              style={{ backgroundColor: isActive ? "#aaa" : "#999" }}
+            />
+          )}
+          {summary}
+        </div>
+
+        {/* Repo . branch . org */}
+        <div
+          className="pl-8 flex items-center gap-2 text-xs font-mono mb-4"
+          style={{ color: isActive ? "#666" : "#999" }}
         >
           <span className="truncate">
             {repoName}
-            {branchName && <span> @ {branchName}</span>}
+            {branchName && <span> · {branchName}</span>}
           </span>
           {orgLabel && (
             <span className="shrink-0">· {orgLabel}</span>
           )}
         </div>
-
-        {/* Creature + Status row */}
-        <div className="flex items-center gap-4 mb-4">
-          <PixelCreature workType={session.workType} size={4} inverted={isActive} />
-          <StatusBadge workType={session.workType} needsInput={needsInput} isActive={isActive} />
-        </div>
-
-        {/* Last user message */}
-        {truncatedMessage && (
-          <p
-            className="text-sm font-mono leading-relaxed line-clamp-2 mb-3"
-            style={{ color: isActive ? "#ccc" : "#444" }}
-          >
-            &ldquo;{truncatedMessage}&rdquo;
-          </p>
-        )}
-
-        {/* Subagents */}
-        <SubagentList subagents={session.subagents} isActive={isActive} />
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -126,7 +158,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
             className="text-xs font-mono mt-3 font-bold"
             style={{ color: isActive ? "#666" : "#999" }}
           >
-            ◆ Space to dictate · Enter to type
+            &#9670; Space to dictate · Enter to type
           </div>
         )}
 
@@ -136,6 +168,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
             <ContextMeter
               percentUsed={session.conversation.tokenUsage.contextPercentUsed}
               totalTokens={session.conversation.tokenUsage.totalTokens}
+              contextLimit={1_000_000}
               isActive={isActive}
             />
           </div>
@@ -146,6 +179,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
           <ResponseInput
             onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
             autoFocus={isFocused && inputOpen}
+            voiceMode={voiceMode}
           />
         )}
       </div>

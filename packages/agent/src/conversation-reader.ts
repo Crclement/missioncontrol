@@ -9,7 +9,7 @@ const PRICING = {
   cacheReadPerToken: 0.3 / 1_000_000,
 };
 
-const CONTEXT_LIMIT = 200_000;
+const CONTEXT_LIMIT = 1_000_000;
 
 function cwdToProjectPath(cwd: string): string {
   return (

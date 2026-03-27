@@ -22,6 +22,7 @@ export function Dashboard() {
     focusedIndex,
     showHelp,
     inputOpen,
+    voiceMode,
     viewMode,
     setShowHelp,
     setViewMode,
@@ -108,6 +109,7 @@ export function Dashboard() {
                   index={i}
                   isFocused={focusedIndex === i}
                   inputOpen={inputOpen && focusedIndex === i}
+                  voiceMode={voiceMode}
                   onSendResponse={sendResponse}
                 />
               ))}
@@ -124,9 +126,9 @@ export function Dashboard() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <pre className="text-black text-base leading-relaxed mb-6 font-mono">
-{`█▀▀█
-█▄▄█
- ░░
+{`\u2588\u2580\u2580\u2588
+\u2588\u2584\u2584\u2588
+ \u2591\u2591
     `}
               </pre>
               <p className="text-black text-base font-mono font-bold">
@@ -137,7 +139,7 @@ export function Dashboard() {
                   ? "Waiting for Claude Code sessions..."
                   : connectionState === "connecting"
                     ? "Connecting to agent..."
-                    : "Disconnected — press r to reconnect"}
+                    : "Disconnected \u2014 press r to reconnect"}
               </p>
             </div>
           </div>
@@ -159,7 +161,7 @@ export function Dashboard() {
             </h2>
             <div className="space-y-3 text-sm font-mono">
               {[
-                ["← →", "Navigate between sessions"],
+                ["\u2190 \u2191 \u2192 \u2193", "Navigate between sessions"],
                 ["1-9", "Jump to session"],
                 ["Space", "Dictate with Wispr Flow"],
                 ["Enter", "Type a response"],
@@ -170,7 +172,7 @@ export function Dashboard() {
                 ["?", "This help"],
               ].map(([key, desc]) => (
                 <div key={key} className="flex items-center gap-4">
-                  <span className="w-16 text-center text-black shrink-0 text-xs font-bold border border-black px-2 py-1">
+                  <span className="w-20 text-center text-black shrink-0 text-xs font-bold border border-black px-2 py-1">
                     {key}
                   </span>
                   <span className="text-secondary">{desc}</span>

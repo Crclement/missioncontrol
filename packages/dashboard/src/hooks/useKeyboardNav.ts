@@ -13,6 +13,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
   const [focusedIndex, setFocusedIndex] = useState<number>(-1)
   const [showHelp, setShowHelp] = useState(false)
   const [inputOpen, setInputOpen] = useState(false)
+  const [voiceMode, setVoiceMode] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
 
   const handleKeyDown = useCallback(
@@ -23,6 +24,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
       if (e.key === "Escape") {
         if (inputOpen) {
           setInputOpen(false)
+          setVoiceMode(false)
           return
         }
         if (showHelp) {
@@ -60,6 +62,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         e.preventDefault()
         setFocusedIndex(num - 1)
         setInputOpen(false)
+        setVoiceMode(false)
         return
       }
 
@@ -71,6 +74,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
           return prev < sessionCount - 1 ? prev + 1 : 0
         })
         setInputOpen(false)
+        setVoiceMode(false)
         return
       }
 
@@ -81,6 +85,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
           return prev > 0 ? prev - 1 : sessionCount - 1
         })
         setInputOpen(false)
+        setVoiceMode(false)
         return
       }
 
@@ -88,13 +93,15 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
       if (e.key === " " && focusedIndex >= 0) {
         e.preventDefault()
         setInputOpen(true)
+        setVoiceMode(true)
         return
       }
 
-      // Enter also opens input
+      // Enter = open type input
       if (e.key === "Enter" && focusedIndex >= 0) {
         e.preventDefault()
         setInputOpen(true)
+        setVoiceMode(false)
         return
       }
     },
@@ -117,9 +124,11 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
     focusedIndex,
     showHelp,
     inputOpen,
+    voiceMode,
     viewMode,
     setShowHelp,
     setInputOpen,
+    setVoiceMode,
     setFocusedIndex,
     setViewMode,
   }

@@ -3,17 +3,25 @@
 interface ContextMeterProps {
   percentUsed: number
   totalTokens: number
+  contextLimit?: number
   isActive?: boolean
 }
 
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+function formatTokensCompact(n: number): string {
+  if (n >= 1_000_000) {
+    const val = n / 1_000_000
+    return val % 1 === 0 ? `${val}M` : `${val.toFixed(1)}M`
+  }
+  if (n >= 1_000) {
+    const val = Math.round(n / 1_000)
+    return `${val}K`
+  }
   return String(n)
 }
 
-export function ContextMeter({ percentUsed, totalTokens, isActive }: ContextMeterProps) {
-  const pct = Math.min(Math.max(percentUsed, 0), 100)
+export function ContextMeter({ percentUsed, totalTokens, contextLimit = 1_000_000, isActive }: ContextMeterProps) {
+  // Recalculate percentage based on actual context limit
+  const pct = Math.min(Math.max((totalTokens / contextLimit) * 100, 0), 100)
 
   const trackColor = isActive ? "#333" : "#e0e0e0"
   const fillColor = isActive ? "#fff" : "#000"
@@ -34,7 +42,7 @@ export function ContextMeter({ percentUsed, totalTokens, isActive }: ContextMete
         />
       </div>
       <div className="text-xs mt-1 font-mono" style={{ color: textColor }}>
-        {Math.round(pct)}% · {formatTokens(totalTokens)} tokens
+        {formatTokensCompact(totalTokens)} / {formatTokensCompact(contextLimit)}
       </div>
     </div>
   )

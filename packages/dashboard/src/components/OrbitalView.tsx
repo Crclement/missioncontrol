@@ -41,7 +41,7 @@ export function OrbitalView({ sessions, focusedIndex, inputOpen, onSendResponse 
         const isSelected = focusedIndex === i
         const needsInput = session.conversation.needsInput
         const isActive = session.workType !== "idle" && !needsInput
-        const sessionName = session.terminalTitle ?? session.name ?? session.sessionId.slice(0, 8)
+        const sessionName = session.name ?? session.sessionId.slice(0, 8)
         const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
         const branchName = session.git?.branch ?? ""
         const orgLabel = session.git
@@ -73,13 +73,10 @@ export function OrbitalView({ sessions, focusedIndex, inputOpen, onSendResponse 
                 height: isSelected ? "auto" : size,
                 minHeight: isSelected ? size : undefined,
                 borderRadius: isSelected ? "16px" : "50%",
-                border: needsInput
-                  ? `${borderWidth}px dashed #000`
-                  : `${borderWidth}px solid #000`,
-                backgroundColor: isActive ? "#000" : "#fff",
+                border: "1px solid #000",
+                backgroundColor: isActive ? "#000" : needsInput ? "#f8f8f5" : "#fff",
                 color: isActive ? "#fff" : "#000",
                 transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-                animation: needsInput ? "pulse-border 2s ease-in-out infinite" : undefined,
                 padding: isSelected ? "24px" : "12px",
                 alignItems: isSelected ? "stretch" : undefined,
               }}
@@ -186,6 +183,7 @@ export function OrbitalView({ sessions, focusedIndex, inputOpen, onSendResponse 
                       <ContextMeter
                         percentUsed={session.conversation.tokenUsage.contextPercentUsed}
                         totalTokens={session.conversation.tokenUsage.totalTokens}
+                        contextLimit={1_000_000}
                         isActive={isActive}
                       />
                     </div>
