@@ -22,20 +22,30 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect }: UseKeyboardN
       const target = e.target as HTMLElement
       const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA"
 
+      // Escape ALWAYS works, even from inputs
       if (e.key === "Escape") {
+        e.preventDefault()
         if (inputOpen) {
           setInputOpen(false)
           setVoiceMode(false)
+          // Blur any focused input so arrow keys work again
+          ;(document.activeElement as HTMLElement)?.blur()
           return
         }
         if (showHelp) {
           setShowHelp(false)
           return
         }
-        setFocusedIndex(-1)
+        // If we have a focused card, keep it focused (don't deselect)
+        // Press Escape again to fully deselect
+        if (focusedIndex >= 0) {
+          setFocusedIndex(-1)
+          return
+        }
         return
       }
 
+      // If typing in an input, don't intercept other keys
       if (isInput) return
 
       if (e.key === "?") {
@@ -65,7 +75,7 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect }: UseKeyboardN
         return
       }
 
-      // Left/Right: move within the row (sequential)
+      // Left/Right: move within the row
       if (e.key === "ArrowRight" || e.key === "l") {
         e.preventDefault()
         setFocusedIndex((prev) => {
@@ -111,7 +121,6 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect }: UseKeyboardN
           if (prev < 0) return sessionCount - 1
           const next = prev - cols
           if (next >= 0) return next
-          // Wrap to last row, same column
           const col = prev % cols
           const lastRowStart = Math.floor((sessionCount - 1) / cols) * cols
           const target = lastRowStart + col

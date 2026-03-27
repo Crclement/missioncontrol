@@ -15,43 +15,36 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
   const [sendState, setSendState] = useState<SendState>("idle")
   const [typing, setTyping] = useState(!voiceMode)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const hiddenRef = useRef<HTMLTextAreaElement>(null)
 
-  // Voice mode: focus hidden textarea for Wispr Flow
+  // Focus textarea on mount
   useEffect(() => {
-    if (!autoFocus) return
-    if (typing) {
-      textareaRef.current?.focus()
-    } else {
-      hiddenRef.current?.focus()
+    if (autoFocus && textareaRef.current) {
+      textareaRef.current.focus()
     }
   }, [autoFocus, typing])
 
-  // If voiceMode prop changes, sync
+  // Sync voiceMode prop
   useEffect(() => {
     setTyping(!voiceMode)
   }, [voiceMode])
 
-  // Detect dictation in hidden field
-  const prevLen = useRef(0)
-  const handleHiddenChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const v = e.target.value
-    setValue(v)
-    if (v.length > prevLen.current + 2) {
-      // Dictation detected - show the textarea with dictated text
-      setTyping(true)
-      setTimeout(() => textareaRef.current?.focus(), 0)
-    }
-    prevLen.current = v.length
-  }, [])
-
-  // Auto-resize
+  // Auto-resize textarea
   useEffect(() => {
     const ta = textareaRef.current
     if (!ta) return
     ta.style.height = "auto"
     ta.style.height = Math.min(ta.scrollHeight, 120) + "px"
   }, [value])
+
+  // Detect dictation — text appearing rapidly means Wispr is active
+  const prevLen = useRef(0)
+  useEffect(() => {
+    if (value.length > prevLen.current + 3 && !typing) {
+      // Dictation detected, switch to visible typing mode
+      setTyping(true)
+    }
+    prevLen.current = value.length
+  }, [value, typing])
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim()
@@ -61,7 +54,6 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
       onSend(trimmed)
       setValue("")
       prevLen.current = 0
-      setTyping(false)
       setSendState("sent")
       setTimeout(() => setSendState("idle"), 1500)
     } catch {
@@ -71,58 +63,71 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
   }, [value, onSend])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-    e.stopPropagation()
-  }
+    // Let Escape bubble up to the global handler
+    if (e.key === "Escape") return
 
-  const handleHiddenKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+      return
     }
-    // Any printable character → switch to type mode
-    if (e.key.length === 1 && e.key !== " " && !e.metaKey && !e.ctrlKey && !e.altKey) {
+
+    // In voice mode, any printable key (except space) switches to type mode
+    if (!typing && e.key.length === 1 && e.key !== " " && !e.metaKey && !e.ctrlKey && !e.altKey) {
       setTyping(true)
-      setValue((prev) => prev + e.key)
-      e.preventDefault()
-      setTimeout(() => textareaRef.current?.focus(), 0)
     }
+
+    // Stop other keys from triggering nav
     e.stopPropagation()
   }
 
   const stateLabel =
     sendState === "sending" ? "..." : sendState === "sent" ? "sent" : sendState === "error" ? "err" : null
 
-  // Voice mode: show prompt, no visible input
+  // Voice mode: show a focused textarea styled as a prompt box
+  // The textarea is REAL and on-screen so Wispr Flow can target it
   if (!typing) {
     return (
       <div className="mt-4">
         <div
-          className="w-full py-3 text-sm font-mono font-bold border border-current text-center cursor-pointer select-none"
-          onClick={() => {
-            setTyping(true)
-            setTimeout(() => textareaRef.current?.focus(), 0)
-          }}
+          className="relative w-full border border-current"
+          style={{ borderRadius: "2px" }}
         >
-          ◆ Press spacebar and speak to respond
+          {/* Prompt label centered over the textarea */}
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm font-mono font-bold animate-blink"
+          >
+            ◆ Press spacebar and speak
+          </div>
+          {/* Real textarea — visible but transparent text, so Wispr can type into it */}
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onClick={() => setTyping(true)}
+            rows={1}
+            className="w-full py-3 px-4 bg-transparent text-sm font-mono resize-none text-transparent caret-transparent"
+            style={{ outline: "none", minHeight: "2.5em" }}
+            autoFocus={autoFocus}
+          />
         </div>
-        {/* Hidden textarea for Wispr Flow */}
-        <textarea
-          ref={hiddenRef}
-          value={value}
-          onChange={handleHiddenChange}
-          onKeyDown={handleHiddenKeyDown}
-          style={{ position: "absolute", left: "-9999px", opacity: 0 }}
-          tabIndex={-1}
-        />
+        {value && (
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-xs font-mono" style={{ color: "inherit", opacity: 0.6 }}>{value.length} chars</span>
+            <button
+              onClick={handleSend}
+              className="text-xs font-mono font-bold"
+            >
+              Send
+            </button>
+          </div>
+        )}
       </div>
     )
   }
 
-  // Type mode: show text input
+  // Type mode: standard text input
   return (
     <div className="mt-4">
       <div className="flex items-end gap-2">
@@ -139,12 +144,12 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
           autoFocus
         />
         {stateLabel ? (
-          <span className="text-xs font-mono text-[#666] pb-px">{stateLabel}</span>
+          <span className="text-xs font-mono pb-px" style={{ opacity: 0.6 }}>{stateLabel}</span>
         ) : (
           <button
             onClick={handleSend}
             disabled={!value.trim()}
-            className="text-xs font-mono font-bold text-current disabled:text-[#bbb] pb-px"
+            className="text-xs font-mono font-bold text-current disabled:opacity-30 pb-px"
           >
             Send
           </button>
