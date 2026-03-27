@@ -58,6 +58,7 @@ export interface EnrichedSession {
   cwd: string
   startedAt: number
   name?: string
+  terminalTitle?: string
   configDir: string
   alive: boolean
   git?: GitInfo

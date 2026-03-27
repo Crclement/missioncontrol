@@ -18,12 +18,6 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-const CONNECTION_COLORS: Record<ConnectionState, string> = {
-  connected: "#7c9a72",
-  connecting: "#c4956a",
-  disconnected: "#b85c5c",
-}
-
 export function StatsBar({ sessions, connectionState }: StatsBarProps) {
   const activeSessions = sessions.filter((s) => s.alive).length
   const totalTokens = sessions.reduce(
@@ -35,30 +29,28 @@ export function StatsBar({ sessions, connectionState }: StatsBarProps) {
     0,
   )
 
-  const dotColor = CONNECTION_COLORS[connectionState]
+  const isConnected = connectionState === "connected"
 
   return (
-    <div
-      className="flex items-center gap-6 text-xs font-mono text-muted border-b border-border pb-4 mb-6 flex-wrap"
-    >
-      <span className="inline-flex items-center gap-1.5">
+    <div className="flex items-center gap-6 text-sm font-mono text-secondary">
+      <span className="inline-flex items-center gap-2">
         <span
-          className="inline-block w-1.5 h-1.5"
-          style={{ backgroundColor: dotColor, borderRadius: "1px" }}
+          className="inline-block w-2 h-2"
+          style={{ backgroundColor: isConnected ? "#000" : "#999" }}
         />
-        {connectionState}
+        <span style={{ color: isConnected ? "#000" : "#999" }}>{connectionState}</span>
       </span>
 
       <span>
-        <span className="text-[#e0e0e0]">{activeSessions}</span> sessions
+        <span className="text-black font-bold">{activeSessions}</span> sessions
       </span>
 
       <span>
-        <span className="text-[#e0e0e0]">{formatTokens(totalTokens)}</span> tokens
+        <span className="text-black font-bold">{formatTokens(totalTokens)}</span> tokens
       </span>
 
       <span>
-        <span className="text-[#e0e0e0]">{formatCost(totalCost)}</span> est. cost
+        <span className="text-black font-bold">{formatCost(totalCost)}</span> est.
       </span>
     </div>
   )

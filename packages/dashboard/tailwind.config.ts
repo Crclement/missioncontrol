@@ -9,16 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#0c0c0c",
-        card: "#161616",
-        border: "#2a2a2a",
-        sage: "#7c9a72",
-        slate: "#6b8cae",
-        dusty: "#9b7cb8",
-        ochre: "#c4956a",
-        muted: "#6b6b6b",
-        danger: "#b85c5c",
-        teal: "#6b9e9e",
+        bg: "#ffffff",
+        card: "#ffffff",
+        border: "#000000",
+        muted: "#999999",
+        primary: "#000000",
+        secondary: "#666666",
       },
       fontFamily: {
         mono: ['"JetBrains Mono"', "monospace"],

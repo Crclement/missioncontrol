@@ -13,6 +13,7 @@ import { getGitInfo } from "./git-reader.js";
 import { readConversation } from "./conversation-reader.js";
 import { readSubagents } from "./subagent-reader.js";
 import { respondToSession } from "./responder.js";
+import { getTerminalTitle } from "./terminal-title.js";
 import { createWatcher } from "./watcher.js";
 
 const PORT = parseInt(process.env.PORT ?? "45557", 10);
@@ -80,12 +81,15 @@ async function enrichSession(
     readSubagents(configDir, raw.sessionId, raw.cwd),
   ]);
 
+  const terminalTitle = getTerminalTitle(raw.pid);
+
   const partial: EnrichedSession = {
     pid: raw.pid,
     sessionId: raw.sessionId,
     cwd: raw.cwd,
     startedAt: raw.startedAt,
-    name: raw.name,
+    name: raw.name ?? terminalTitle,
+    terminalTitle,
     configDir,
     alive: true,
     git,

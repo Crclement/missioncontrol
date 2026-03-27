@@ -6,13 +6,12 @@ interface OrgBadgeProps {
   remote?: string
 }
 
-export function OrgBadge({ isPersonal, org, remote }: OrgBadgeProps) {
+export function OrgBadge({ isPersonal, org }: OrgBadgeProps) {
   const label = isPersonal ? "personal" : org ?? "org"
-  const color = isPersonal ? "#6b6b6b" : "#6b8cae"
 
   return (
-    <span className="text-xs font-mono" style={{ color }}>
-      @ {label}
+    <span className="text-sm font-mono text-secondary">
+      · {label}
     </span>
   )
 }

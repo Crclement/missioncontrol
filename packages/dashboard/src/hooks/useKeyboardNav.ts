@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 
+export type ViewMode = "grid" | "orbital"
+
 interface UseKeyboardNavOptions {
   sessionCount: number
   onReconnect: () => void
@@ -11,6 +13,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
   const [focusedIndex, setFocusedIndex] = useState<number>(-1)
   const [showHelp, setShowHelp] = useState(false)
   const [inputOpen, setInputOpen] = useState(false)
+  const [viewMode, setViewMode] = useState<ViewMode>("grid")
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -39,6 +42,12 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
+      if (e.key === "v") {
+        e.preventDefault()
+        setViewMode((prev) => (prev === "grid" ? "orbital" : "grid"))
+        return
+      }
+
       if (e.key === "r") {
         e.preventDefault()
         onReconnect()
@@ -54,7 +63,8 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
-      if (e.key === "j" || e.key === "ArrowDown") {
+      // Arrow keys + j/k for navigation
+      if (e.key === "j" || e.key === "ArrowDown" || e.key === "ArrowRight") {
         e.preventDefault()
         setFocusedIndex((prev) => {
           if (sessionCount === 0) return -1
@@ -64,7 +74,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
-      if (e.key === "k" || e.key === "ArrowUp") {
+      if (e.key === "k" || e.key === "ArrowUp" || e.key === "ArrowLeft") {
         e.preventDefault()
         setFocusedIndex((prev) => {
           if (sessionCount === 0) return -1
@@ -74,6 +84,14 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
+      // Spacebar = open voice input (Wispr Flow)
+      if (e.key === " " && focusedIndex >= 0) {
+        e.preventDefault()
+        setInputOpen(true)
+        return
+      }
+
+      // Enter also opens input
       if (e.key === "Enter" && focusedIndex >= 0) {
         e.preventDefault()
         setInputOpen(true)
@@ -99,8 +117,10 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
     focusedIndex,
     showHelp,
     inputOpen,
+    viewMode,
     setShowHelp,
     setInputOpen,
     setFocusedIndex,
+    setViewMode,
   }
 }

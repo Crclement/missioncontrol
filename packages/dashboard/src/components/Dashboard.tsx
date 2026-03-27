@@ -5,16 +5,15 @@ import { useAgent } from "@/hooks/useAgent"
 import { useKeyboardNav } from "@/hooks/useKeyboardNav"
 import { StatsBar } from "./StatsBar"
 import { SessionCard } from "./SessionCard"
+import { OrbitalView } from "./OrbitalView"
 
 export function Dashboard() {
   const { sessions, connectionState, sendResponse, reconnect } = useAgent()
 
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => {
-      // needs-input first
       if (a.conversation.needsInput && !b.conversation.needsInput) return -1
       if (!a.conversation.needsInput && b.conversation.needsInput) return 1
-      // then by most recent start time (newer first)
       return b.startedAt - a.startedAt
     })
   }, [sessions])
@@ -23,13 +22,14 @@ export function Dashboard() {
     focusedIndex,
     showHelp,
     inputOpen,
+    viewMode,
     setShowHelp,
+    setViewMode,
   } = useKeyboardNav({
     sessionCount: sortedSessions.length,
     onReconnect: reconnect,
   })
 
-  // Request notification permission on mount
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "default") {
@@ -38,120 +38,151 @@ export function Dashboard() {
     }
   }, [])
 
-  // Refs for keyboard focus
   const cardRefs = useRef<React.RefObject<HTMLDivElement | null>[]>([])
   if (cardRefs.current.length !== sortedSessions.length) {
     cardRefs.current = sortedSessions.map((_, i) => cardRefs.current[i] ?? createRef())
   }
 
   useEffect(() => {
-    if (focusedIndex >= 0 && focusedIndex < cardRefs.current.length) {
+    if (viewMode === "grid" && focusedIndex >= 0 && focusedIndex < cardRefs.current.length) {
       cardRefs.current[focusedIndex]?.current?.focus()
     }
-  }, [focusedIndex])
+  }, [focusedIndex, viewMode])
+
+  const count = sortedSessions.length
+  const cols = count <= 1 ? 1 : count === 2 ? 2 : count <= 4 ? 2 : count <= 6 ? 3 : count <= 9 ? 3 : 4
 
   return (
-    <div className="fixed inset-0 overflow-auto">
-      <div className="p-4 md:p-12 font-mono">
+    <div className="fixed inset-0 overflow-hidden flex flex-col">
+      <div className="p-4 md:p-12 flex flex-col h-full font-mono">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-sm font-mono text-muted tracking-widest uppercase">
-            mission control
-          </h1>
-        </div>
-
-        {/* Stats bar */}
-        <StatsBar sessions={sortedSessions} connectionState={connectionState} />
-
-        {/* Session grid */}
-        {sortedSessions.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {sortedSessions.map((session, i) => (
-              <SessionCard
-                key={session.pid}
-                ref={cardRefs.current[i]}
-                session={session}
-                index={i}
-                isFocused={focusedIndex === i}
-                inputOpen={inputOpen && focusedIndex === i}
-                onSendResponse={sendResponse}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="text-center">
-              <pre className="text-muted text-xs leading-relaxed mb-4 font-mono">
-{`  .-----.
-  |- _ -|
-  |  o  |
-    zzZ`}
-              </pre>
-              <p className="text-muted text-xs font-mono">
-                no active sessions
-              </p>
-              <p className="text-muted text-[10px] font-mono mt-1">
-                {connectionState === "connected"
-                  ? "waiting for claude code sessions..."
-                  : connectionState === "connecting"
-                    ? "connecting to agent..."
-                    : "disconnected -- press r to reconnect"}
-              </p>
+        <div className="flex items-baseline justify-between mb-8 shrink-0 border-b border-black pb-4">
+          <div className="flex items-baseline gap-6">
+            <h1 className="text-lg font-mono font-bold text-black tracking-widest uppercase">
+              Mission Control
+            </h1>
+            {/* View toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`text-xs font-mono transition-colors ${
+                  viewMode === "grid"
+                    ? "text-black font-bold"
+                    : "text-[#999] hover:text-[#666]"
+                }`}
+              >
+                Grid
+              </button>
+              <span className="text-[#ccc] text-xs">/</span>
+              <button
+                onClick={() => setViewMode("orbital")}
+                className={`text-xs font-mono transition-colors ${
+                  viewMode === "orbital"
+                    ? "text-black font-bold"
+                    : "text-[#999] hover:text-[#666]"
+                }`}
+              >
+                Orbital
+              </button>
+              <span className="text-[10px] text-[#ccc] font-mono ml-1">[v]</span>
             </div>
           </div>
-        )}
+          <StatsBar sessions={sortedSessions} connectionState={connectionState} />
+        </div>
 
-        {/* Keyboard help overlay */}
-        {showHelp && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            style={{ backgroundColor: "rgba(12, 12, 12, 0.9)" }}
-            onClick={() => setShowHelp(false)}
-          >
+        {/* Content */}
+        {sortedSessions.length > 0 ? (
+          viewMode === "grid" ? (
             <div
-              className="p-8 max-w-md w-full"
+              className="flex-1 grid gap-0 min-h-0"
               style={{
-                backgroundColor: "#161616",
-                border: "1px solid #2a2a2a",
-                borderRadius: "2px",
+                gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                gridTemplateRows: `repeat(${Math.ceil(count / cols)}, 1fr)`,
               }}
-              onClick={(e) => e.stopPropagation()}
             >
-              <h2 className="text-sm font-mono text-[#e0e0e0] mb-4 tracking-widest uppercase">
-                keyboard shortcuts
-              </h2>
-              <div className="space-y-2 text-xs font-mono">
-                {[
-                  ["1-9", "focus session by index"],
-                  ["j / k", "move focus down / up"],
-                  ["Enter", "open response input"],
-                  ["Tab", "switch voice / type mode"],
-                  ["Escape", "close input / help / unfocus"],
-                  ["r", "reconnect websocket"],
-                  ["?", "toggle this help"],
-                ].map(([key, desc]) => (
-                  <div key={key} className="flex items-center gap-4">
-                    <span
-                      className="w-16 text-right text-[#e0e0e0] shrink-0"
-                      style={{
-                        backgroundColor: "#2a2a2a",
-                        padding: "2px 6px",
-                        borderRadius: "1px",
-                      }}
-                    >
-                      {key}
-                    </span>
-                    <span className="text-muted">{desc}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted mt-6 font-mono">
-                press ? or Escape to close
+              {sortedSessions.map((session, i) => (
+                <SessionCard
+                  key={session.pid}
+                  ref={cardRefs.current[i]}
+                  session={session}
+                  index={i}
+                  isFocused={focusedIndex === i}
+                  inputOpen={inputOpen && focusedIndex === i}
+                  onSendResponse={sendResponse}
+                />
+              ))}
+            </div>
+          ) : (
+            <OrbitalView
+              sessions={sortedSessions}
+              focusedIndex={focusedIndex}
+              inputOpen={inputOpen && focusedIndex >= 0}
+              onSendResponse={sendResponse}
+            />
+          )
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <pre className="text-black text-base leading-relaxed mb-6 font-mono">
+{`█▀▀█
+█▄▄█
+ ░░
+    `}
+              </pre>
+              <p className="text-black text-base font-mono font-bold">
+                No active sessions
+              </p>
+              <p className="text-muted text-sm font-mono mt-2">
+                {connectionState === "connected"
+                  ? "Waiting for Claude Code sessions..."
+                  : connectionState === "connecting"
+                    ? "Connecting to agent..."
+                    : "Disconnected — press r to reconnect"}
               </p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Keyboard help */}
+      {showHelp && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 bg-white/95"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="p-10 max-w-md w-full border border-black"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-sm font-mono text-black mb-6 font-bold tracking-widest uppercase">
+              Keyboard Shortcuts
+            </h2>
+            <div className="space-y-3 text-sm font-mono">
+              {[
+                ["← →", "Navigate between sessions"],
+                ["1-9", "Jump to session"],
+                ["Space", "Dictate with Wispr Flow"],
+                ["Enter", "Type a response"],
+                ["Tab", "Switch voice / type mode"],
+                ["v", "Toggle Grid / Orbital view"],
+                ["Esc", "Close / unfocus"],
+                ["r", "Reconnect"],
+                ["?", "This help"],
+              ].map(([key, desc]) => (
+                <div key={key} className="flex items-center gap-4">
+                  <span className="w-16 text-center text-black shrink-0 text-xs font-bold border border-black px-2 py-1">
+                    {key}
+                  </span>
+                  <span className="text-secondary">{desc}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted mt-8 font-mono">
+              Press ? or Esc to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

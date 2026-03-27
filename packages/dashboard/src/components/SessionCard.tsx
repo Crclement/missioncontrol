@@ -2,9 +2,8 @@
 
 import { forwardRef, useEffect, useRef } from "react"
 import type { EnrichedSession } from "@missioncontrol/shared"
-import { AsciiCreature } from "./AsciiCreature"
+import { PixelCreature } from "./PixelCreature"
 import { StatusBadge } from "./StatusBadge"
-import { OrgBadge } from "./OrgBadge"
 import { SubagentList } from "./SubagentList"
 import { ContextMeter } from "./ContextMeter"
 import { ResponseInput } from "./ResponseInput"
@@ -22,7 +21,6 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
     const prevNeedsInputRef = useRef(session.conversation.needsInput)
     const needsInput = session.conversation.needsInput
 
-    // Fire browser notification when transitioning to needs-input
     useEffect(() => {
       if (needsInput && !prevNeedsInputRef.current) {
         if (typeof window !== "undefined" && Notification.permission === "granted") {
@@ -35,84 +33,102 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
       prevNeedsInputRef.current = needsInput
     }, [needsInput, session.name, session.sessionId, session.pid])
 
-    // Scroll into view when focused
     useEffect(() => {
       if (isFocused && ref && typeof ref !== "function" && ref.current) {
         ref.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
       }
     }, [isFocused, ref])
 
-    const borderColor = needsInput
-      ? "#c4956a"
-      : isFocused
-        ? "#6b6b6b"
-        : "#2a2a2a"
-
+    const isActive = session.workType !== "idle" && !needsInput
     const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
     const branchName = session.git?.branch ?? ""
-    const sessionName = session.name ?? session.sessionId.slice(0, 8)
+    const sessionName = session.terminalTitle ?? session.name ?? session.sessionId.slice(0, 8)
+    const orgLabel = session.git
+      ? session.git.isPersonal
+        ? "personal"
+        : session.git.org ?? "org"
+      : null
 
     const lastMessage = session.conversation.lastUserMessage
     const truncatedMessage =
-      lastMessage && lastMessage.length > 120
-        ? lastMessage.slice(0, 120) + "..."
+      lastMessage && lastMessage.length > 140
+        ? lastMessage.slice(0, 140) + "..."
         : lastMessage
 
     return (
       <div
         ref={ref}
         tabIndex={-1}
-        className="p-4 transition-colors"
+        className="p-6 flex flex-col overflow-hidden transition-colors relative"
         style={{
-          backgroundColor: "#161616",
-          border: `1px solid ${borderColor}`,
-          borderRadius: "2px",
-          outline: "none",
+          backgroundColor: isActive ? "#000000" : "#ffffff",
+          color: isActive ? "#ffffff" : "#000000",
+          border: needsInput ? "1px dashed #000000" : "1px solid #000000",
+          outline: isFocused ? "2px solid #000000" : "none",
+          outlineOffset: "-3px",
+          animation: needsInput ? "pulse-border 2s ease-in-out infinite" : undefined,
         }}
       >
-        {/* Top row: creature + session info */}
-        <div className="flex items-start gap-3">
-          <AsciiCreature creature={session.creature} workType={session.workType} />
+        {/* Number key - large bold corner */}
+        <div
+          className="absolute top-4 right-4 text-2xl font-mono font-bold leading-none"
+          style={{ color: isActive ? "#333" : "#ddd" }}
+        >
+          {index + 1}
+        </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 justify-between">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[10px] text-muted font-mono">{index + 1}</span>
-                <span className="text-sm font-mono text-[#e0e0e0] truncate">
-                  {sessionName}
-                </span>
-              </div>
-              <StatusBadge workType={session.workType} needsInput={needsInput} />
-            </div>
+        {/* Title - full width, large and bold */}
+        <div className="flex items-start gap-4 mb-1 pr-10">
+          <h2 className="text-lg font-mono font-bold truncate leading-tight flex-1">
+            {sessionName}
+          </h2>
+        </div>
 
-            {/* Repo + branch + org */}
-            <div className="flex items-center gap-2 mt-1 text-xs font-mono text-muted">
-              <span className="truncate">
-                {repoName}
-                {branchName && (
-                  <span className="text-slate"> @ {branchName}</span>
-                )}
-              </span>
-              {session.git && (
-                <OrgBadge
-                  isPersonal={session.git.isPersonal}
-                  org={session.git.org}
-                  remote={session.git.remote}
-                />
-              )}
-            </div>
-          </div>
+        {/* Repo @ branch . org */}
+        <div
+          className="flex items-center gap-2 text-sm font-mono mb-4"
+          style={{ color: isActive ? "#aaa" : "#666" }}
+        >
+          <span className="truncate">
+            {repoName}
+            {branchName && <span> @ {branchName}</span>}
+          </span>
+          {orgLabel && (
+            <span className="shrink-0">· {orgLabel}</span>
+          )}
+        </div>
+
+        {/* Creature + Status row */}
+        <div className="flex items-center gap-4 mb-4">
+          <PixelCreature workType={session.workType} size={4} inverted={isActive} />
+          <StatusBadge workType={session.workType} needsInput={needsInput} isActive={isActive} />
         </div>
 
         {/* Last user message */}
         {truncatedMessage && (
-          <div className="mt-3 text-xs font-mono text-muted leading-relaxed line-clamp-2">
+          <p
+            className="text-sm font-mono leading-relaxed line-clamp-2 mb-3"
+            style={{ color: isActive ? "#ccc" : "#444" }}
+          >
             &ldquo;{truncatedMessage}&rdquo;
-          </div>
+          </p>
         )}
 
         {/* Subagents */}
-        <SubagentList subagents={session.subagents} />
+        <SubagentList subagents={session.subagents} isActive={isActive} />
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Wispr hint when focused */}
+        {isFocused && !inputOpen && needsInput && (
+          <div
+            className="text-xs font-mono mt-3 font-bold"
+            style={{ color: isActive ? "#666" : "#999" }}
+          >
+            ◆ Space to dictate · Enter to type
+          </div>
+        )}
 
         {/* Context meter */}
         {session.conversation.tokenUsage && (
@@ -120,12 +136,13 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
             <ContextMeter
               percentUsed={session.conversation.tokenUsage.contextPercentUsed}
               totalTokens={session.conversation.tokenUsage.totalTokens}
+              isActive={isActive}
             />
           </div>
         )}
 
         {/* Response input */}
-        {needsInput && (isFocused && inputOpen || true) && (
+        {needsInput && (
           <ResponseInput
             onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
             autoFocus={isFocused && inputOpen}

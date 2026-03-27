@@ -1,53 +1,56 @@
 import type { WorkType } from "./types.js"
 
+// Pixel block creatures using Unicode block elements
+// ░ light shade, ▒ medium shade, ▓ dark shade, █ full block
+// ▀ upper half, ▄ lower half, ▌ left half, ▐ right half
 const creatures: Record<WorkType, string> = {
   coding: [
-    "  ._____. ",
-    "  |o   o| ",
-    "  |  ^  | ",
-    "  _|/|\\|_ ",
+    "█▀▀█",
+    "█▄▄█",
+    " ▐▌ ",
+    " █▀█",
   ].join("\n"),
 
   exploring: [
-    "   .---.  ",
-    "  (o  O)~ ",
-    "  /| d |  ",
-    "   |/|\\|  ",
+    "█▀▀█",
+    "█▄▄█",
+    "▐▌░ ",
+    "█▀▀▀",
   ].join("\n"),
 
   planning: [
-    "  .-----. ",
-    "  |*   *| ",
-    "  | ___ | ",
-    "  [=====] ",
+    "█▀▀█",
+    "█▄▄█",
+    " ▐▌ ",
+    "▀██▀",
   ].join("\n"),
 
   debugging: [
-    "  .@~~~@. ",
-    "  |o _ o| ",
-    "  | ? ? | ",
-    "  \\-^^^-/ ",
+    "█▀▀█",
+    "█░░█",
+    " ▐▌ ",
+    "░██░",
   ].join("\n"),
 
   idle: [
-    "  .-----. ",
-    "  |- _ -| ",
-    "  |  o  | ",
-    "    zzZ   ",
+    "█▀▀█",
+    "█▄▄█",
+    " ░░ ",
+    "    ",
   ].join("\n"),
 
   running: [
-    " >>.___.  ",
-    " >>|o o|  ",
-    " >>| ^ |  ",
-    " >>|/|\\|  ",
+    "█▀▀█",
+    "█▄▄█",
+    "░▐▌░",
+    "░▌▐░",
   ].join("\n"),
 
   reviewing: [
-    "  .-----. ",
-    "  |o   o| ",
-    "  | === | ",
-    "  |_____| ",
+    "█▀▀█",
+    "█▄▄█",
+    " ▐▌ ",
+    "▀▀▀▀",
   ].join("\n"),
 }
 

@@ -2,48 +2,52 @@
 
 import type { WorkType } from "@missioncontrol/shared"
 
-const STATUS_COLORS: Record<WorkType | "needs-input", string> = {
-  coding: "#7c9a72",
-  exploring: "#6b8cae",
-  planning: "#9b7cb8",
-  debugging: "#b85c5c",
-  idle: "#6b6b6b",
-  running: "#6b9e9e",
-  reviewing: "#6b8cae",
-  "needs-input": "#c4956a",
-}
-
 const STATUS_LABELS: Record<WorkType | "needs-input", string> = {
-  coding: "active",
-  exploring: "exploring",
-  planning: "planning",
-  debugging: "debugging",
-  idle: "idle",
-  running: "running",
-  reviewing: "reviewing",
-  "needs-input": "needs input",
+  coding: "Active",
+  exploring: "Exploring",
+  planning: "Planning",
+  debugging: "Debugging",
+  idle: "Idle",
+  running: "Running",
+  reviewing: "Reviewing",
+  "needs-input": "Needs Input",
 }
 
 interface StatusBadgeProps {
   workType: WorkType
   needsInput: boolean
+  isActive?: boolean
 }
 
-export function StatusBadge({ workType, needsInput }: StatusBadgeProps) {
+export function StatusBadge({ workType, needsInput, isActive }: StatusBadgeProps) {
   const key = needsInput ? "needs-input" : workType
-  const color = STATUS_COLORS[key]
   const label = STATUS_LABELS[key]
 
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-mono">
+  if (needsInput) {
+    return (
       <span
-        className="inline-block w-1.5 h-1.5"
+        className="text-xs font-mono font-bold px-2 py-0.5"
         style={{
-          backgroundColor: color,
-          borderRadius: "1px",
+          border: "1px solid #000",
+          backgroundColor: "#000",
+          color: "#fff",
         }}
-      />
-      <span style={{ color }}>{label}</span>
+      >
+        {label}
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className="text-xs font-mono px-2 py-0.5"
+      style={{
+        border: isActive ? "1px solid #666" : "1px solid #000",
+        color: isActive ? "#aaa" : "#666",
+        backgroundColor: "transparent",
+      }}
+    >
+      {label}
     </span>
   )
 }

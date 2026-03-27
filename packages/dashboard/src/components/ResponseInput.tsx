@@ -18,18 +18,14 @@ export function ResponseInput({ onSend, autoFocus }: ResponseInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const prevValueRef = useRef("")
 
-  // Auto-focus in voice mode: focus the textarea so Wispr Flow can type into it
   useEffect(() => {
     if (autoFocus && textareaRef.current) {
       textareaRef.current.focus()
     }
   }, [autoFocus])
 
-  // Detect Wispr Flow dictation: value changes without keyboard events
-  // When Wispr is active, text appears rapidly without keydown events
   const detectDictation = useCallback(() => {
     if (value.length > prevValueRef.current.length + 3) {
-      // Multiple characters appeared at once - likely dictation
       setIsListening(true)
       setMode("voice")
     }
@@ -40,14 +36,12 @@ export function ResponseInput({ onSend, autoFocus }: ResponseInputProps) {
     detectDictation()
   }, [detectDictation])
 
-  // Clear listening state after dictation pauses
   useEffect(() => {
     if (!isListening) return
     const timer = setTimeout(() => setIsListening(false), 1500)
     return () => clearTimeout(timer)
   }, [isListening, value])
 
-  // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -80,7 +74,6 @@ export function ResponseInput({ onSend, autoFocus }: ResponseInputProps) {
       e.preventDefault()
       setMode(mode === "voice" ? "type" : "voice")
     }
-    // Stop propagation so keyboard nav doesn't fire
     e.stopPropagation()
   }
 
@@ -94,43 +87,36 @@ export function ResponseInput({ onSend, autoFocus }: ResponseInputProps) {
           : null
 
   return (
-    <div className="mt-3 space-y-1">
-      {/* Mode indicator - voice is primary */}
+    <div className="mt-4 space-y-2">
+      {/* Mode toggle */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => {
-              setMode("voice")
-              textareaRef.current?.focus()
-            }}
-            className={`flex items-center gap-1 text-[10px] font-mono transition-colors ${
-              mode === "voice" ? "text-ochre" : "text-muted hover:text-[#888]"
+            onClick={() => { setMode("voice"); textareaRef.current?.focus() }}
+            className={`text-xs font-mono font-bold transition-colors ${
+              mode === "voice" ? "text-black" : "text-[#ccc] hover:text-[#999]"
             }`}
           >
             <span className={isListening ? "animate-pulse" : ""}>
-              {isListening ? "◉" : "○"}
+              {isListening ? "●" : "○"}
             </span>
-            wispr
+            {" "}Wispr
           </button>
-          <span className="text-[10px] text-[#333]">|</span>
           <button
-            onClick={() => {
-              setMode("type")
-              textareaRef.current?.focus()
-            }}
-            className={`text-[10px] font-mono transition-colors ${
-              mode === "type" ? "text-muted" : "text-[#444] hover:text-[#666]"
+            onClick={() => { setMode("type"); textareaRef.current?.focus() }}
+            className={`text-xs font-mono transition-colors ${
+              mode === "type" ? "text-black font-bold" : "text-[#ccc] hover:text-[#999]"
             }`}
           >
-            type
+            Type
           </button>
         </div>
-        <span className="text-[10px] text-[#333] font-mono">tab to switch</span>
+        <span className="text-[10px] text-[#ccc] font-mono">tab</span>
       </div>
 
-      {/* Input area */}
+      {/* Input */}
       <div className="flex items-end gap-2">
-        <span className="text-ochre text-sm font-mono select-none pb-px">
+        <span className="text-black text-sm font-mono font-bold select-none pb-px">
           {mode === "voice" ? "◆" : ">"}
         </span>
         <textarea
@@ -138,27 +124,25 @@ export function ResponseInput({ onSend, autoFocus }: ResponseInputProps) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (mode === "voice") setIsListening(false)
-          }}
+          onFocus={() => { if (mode === "voice") setIsListening(false) }}
           placeholder={
             mode === "voice"
               ? "speak with wispr flow..."
               : "type a response..."
           }
           rows={1}
-          className="flex-1 bg-transparent text-sm font-mono text-[#e0e0e0] placeholder:text-[#444] border-b border-border focus:border-ochre transition-colors resize-none leading-relaxed"
+          className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#ccc] border-b border-black focus:border-black transition-colors resize-none leading-relaxed"
           style={{ outline: "none", minHeight: "1.5em", maxHeight: "120px" }}
         />
         {stateLabel ? (
-          <span className="text-[10px] font-mono text-muted pb-px">{stateLabel}</span>
+          <span className="text-xs font-mono text-[#999] pb-px">{stateLabel}</span>
         ) : (
           <button
             onClick={handleSend}
             disabled={!value.trim()}
-            className="text-xs font-mono text-muted hover:text-[#e0e0e0] disabled:opacity-30 transition-colors pb-px"
+            className="text-xs font-mono font-bold text-black hover:text-black disabled:text-[#ccc] transition-colors pb-px"
           >
-            send
+            Send
           </button>
         )}
       </div>

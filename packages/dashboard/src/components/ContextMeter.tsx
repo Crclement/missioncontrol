@@ -3,6 +3,7 @@
 interface ContextMeterProps {
   percentUsed: number
   totalTokens: number
+  isActive?: boolean
 }
 
 function formatTokens(n: number): string {
@@ -11,33 +12,29 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-export function ContextMeter({ percentUsed, totalTokens }: ContextMeterProps) {
+export function ContextMeter({ percentUsed, totalTokens, isActive }: ContextMeterProps) {
   const pct = Math.min(Math.max(percentUsed, 0), 100)
 
-  let fillColor = "#7c9a72" // sage green < 50%
-  if (pct >= 80) fillColor = "#b85c5c" // red > 80%
-  else if (pct >= 50) fillColor = "#c4956a" // ochre 50-80%
+  const trackColor = isActive ? "#333" : "#e0e0e0"
+  const fillColor = isActive ? "#fff" : "#000"
+  const textColor = isActive ? "#999" : "#999"
 
   return (
     <div className="w-full">
       <div
-        className="w-full h-1.5"
-        style={{
-          backgroundColor: "#2a2a2a",
-          borderRadius: "1px",
-        }}
+        className="w-full h-1"
+        style={{ backgroundColor: trackColor }}
       >
         <div
           className="h-full transition-all duration-500"
           style={{
             width: `${pct}%`,
             backgroundColor: fillColor,
-            borderRadius: "1px",
           }}
         />
       </div>
-      <div className="text-[10px] text-muted mt-1 font-mono">
-        {Math.round(pct)}% context | {formatTokens(totalTokens)} tokens
+      <div className="text-xs mt-1 font-mono" style={{ color: textColor }}>
+        {Math.round(pct)}% · {formatTokens(totalTokens)} tokens
       </div>
     </div>
   )
