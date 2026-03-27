@@ -40,15 +40,6 @@ function getTitle(session: EnrichedSession): string {
   return session.sessionId.slice(0, 8)
 }
 
-function getSummary(session: EnrichedSession): string {
-  if (session.summary) return session.summary
-  if (session.conversation.messageCount === 0) return "Ready to go"
-  if (session.conversation.lastUserMessage) {
-    const msg = session.conversation.lastUserMessage
-    return msg.length > 80 ? msg.slice(0, 80) + "..." : msg
-  }
-  return "Ready to go"
-}
 
 function getStatusInfo(session: EnrichedSession): { label: string; isWorking: boolean } {
   if (session.conversation.needsInput) {
@@ -90,7 +81,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
     const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
     const branchName = session.git?.branch ?? ""
     const sessionName = getTitle(session)
-    const summary = getSummary(session)
+
     const { label: statusLabel, isWorking } = getStatusInfo(session)
 
     // Visual states:
@@ -164,9 +155,26 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
             </div>
           </div>
 
-          {/* Summary */}
-          <div className="text-sm font-mono mb-2" style={{ color: isFocused ? "#ccc" : "#555" }}>
-            {summary}
+          {/* Live terminal output */}
+          <div
+            className="text-[11px] font-mono leading-relaxed overflow-hidden flex-1 min-h-0"
+            style={{ color: isFocused ? "#aaa" : "#666" }}
+          >
+            {session.conversation.recentOutput.length > 0 ? (
+              session.conversation.recentOutput.map((line, i) => (
+                <div key={i} className="truncate" style={{
+                  color: line.startsWith(">")
+                    ? (isFocused ? "#888" : "#999")  // user messages dimmer
+                    : line.startsWith("●")
+                      ? (isFocused ? "#fff" : "#000")  // tool use bold
+                      : (isFocused ? "#ccc" : "#444")  // assistant text
+                }}>
+                  {line}
+                </div>
+              ))
+            ) : (
+              <div style={{ color: isFocused ? "#666" : "#bbb" }}>Ready to go</div>
+            )}
           </div>
 
           {/* Spacer */}

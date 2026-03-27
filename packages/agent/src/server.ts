@@ -89,6 +89,7 @@ async function enrichSession(
       lastMessageRole: "user" as const,
       needsInput: false,
       messageCount: 0,
+      recentOutput: [],
     })),
     readSubagents(configDir, raw.sessionId, raw.cwd).catch(() => []),
     getRecentMessages(configDir, raw.sessionId, raw.cwd).catch(() => []),

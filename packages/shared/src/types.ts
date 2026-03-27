@@ -41,6 +41,8 @@ export interface ConversationState {
   needsInput: boolean
   messageCount: number
   tokenUsage?: TokenUsage
+  /** Rolling log of recent activity lines for live terminal display */
+  recentOutput: string[]
 }
 
 export type WorkType =

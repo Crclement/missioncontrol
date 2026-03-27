@@ -62,8 +62,9 @@ function defaultState(): ConversationState {
     lastUserMessage: "",
     lastAssistantText: "",
     lastMessageRole: "user",
-    needsInput: false, // Default to NOT needing input (assume working)
+    needsInput: false,
     messageCount: 0,
+    recentOutput: [],
   };
 }
 
@@ -104,6 +105,7 @@ export async function readConversation(
     let lastToolUse: string | undefined;
     let needsInput = false;
     let messageCount = 0;
+    const recentOutput: string[] = []; // rolling log of activity
 
     let inputTokens = 0;
     let outputTokens = 0;
@@ -128,15 +130,21 @@ export async function readConversation(
         const content = msg?.content ?? obj.content;
         if (typeof content === "string") {
           lastUserMessage = content;
+          // Strip XML noise for display
+          const clean = content.replace(/<[^>]+>[^]*?<\/[^>]+>/g, "").replace(/<[^>]+>/g, "").trim();
+          if (clean.length > 5) {
+            const line = clean.length > 120 ? clean.slice(0, 117) + "..." : clean;
+            recentOutput.push(`> ${line}`);
+          }
         } else if (Array.isArray(content)) {
-          // Find text parts (skip tool_result blocks)
           for (const part of content as Record<string, unknown>[]) {
             if (part.type === "text" && typeof part.text === "string") {
               lastUserMessage = part.text;
-            }
-            // Also check for direct text in tool_result content
-            if (part.type === "tool_result" && typeof part.content === "string") {
-              // Tool results aren't user messages, skip
+              const clean = (part.text as string).replace(/<[^>]+>[^]*?<\/[^>]+>/g, "").replace(/<[^>]+>/g, "").trim();
+              if (clean.length > 5) {
+                const line = clean.length > 120 ? clean.slice(0, 117) + "..." : clean;
+                recentOutput.push(`> ${line}`);
+              }
             }
           }
         }
@@ -160,15 +168,32 @@ export async function readConversation(
         const content = msg?.content ?? obj.content;
         if (typeof content === "string") {
           lastAssistantText = content;
+          const trimmed = content.trim();
+          if (trimmed.length > 0) {
+            const line = trimmed.length > 120 ? trimmed.slice(0, 117) + "..." : trimmed;
+            recentOutput.push(line);
+          }
         } else if (Array.isArray(content)) {
           for (const block of content as Record<string, unknown>[]) {
             if (block.type === "text" && typeof block.text === "string") {
               lastAssistantText = block.text;
+              const trimmed = (block.text as string).trim();
+              if (trimmed.length > 0) {
+                const line = trimmed.length > 120 ? trimmed.slice(0, 117) + "..." : trimmed;
+                recentOutput.push(line);
+              }
             }
             if (block.type === "tool_use" && typeof block.name === "string") {
               lastToolUse = block.name;
-              // If the last content block is a tool_use, assistant is working
               needsInput = false;
+              // Log tool usage with description
+              const input = block.input as Record<string, unknown> | undefined;
+              const desc = input?.description ?? input?.command ?? input?.pattern ?? input?.file_path ?? "";
+              const descStr = typeof desc === "string" ? desc : "";
+              const toolLine = descStr
+                ? `● ${block.name}: ${descStr.length > 80 ? (descStr as string).slice(0, 77) + "..." : descStr}`
+                : `● ${block.name}`;
+              recentOutput.push(toolLine);
             }
           }
         }
@@ -218,6 +243,7 @@ export async function readConversation(
       needsInput,
       messageCount,
       tokenUsage,
+      recentOutput: recentOutput.slice(-8), // last 8 lines
     };
   } finally {
     await fh.close();
