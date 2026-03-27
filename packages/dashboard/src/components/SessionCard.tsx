@@ -13,6 +13,7 @@ interface SessionCardProps {
   inputOpen: boolean
   voiceMode: boolean
   onSendResponse: (sessionId: string, configDir: string, message: string) => void
+  onSelect: (index: number) => void
 }
 
 function humanizeTitle(raw: string): string {
@@ -23,26 +24,22 @@ function humanizeTitle(raw: string): string {
     .join(" ")
 }
 
-function getStatusLabel(session: EnrichedSession): string {
-  if (session.conversation.needsInput) return "Awaiting input"
-  const tool = session.conversation.lastToolUse
-  if (tool) {
-    const m: Record<string, string> = {
-      Edit: "Editing",
-      Write: "Writing",
-      Read: "Reading",
-      Bash: "Running",
-      Grep: "Searching",
-      Glob: "Finding files",
-      Agent: "Subagent",
-    }
-    return m[tool] ?? tool
+function getSummary(session: EnrichedSession): string {
+  if (session.summary) return session.summary
+
+  if (session.conversation.messageCount === 0) return "Ready to go"
+
+  // Show the last user message as context if we have it
+  if (session.conversation.lastUserMessage) {
+    const msg = session.conversation.lastUserMessage
+    return msg.length > 80 ? msg.slice(0, 80) + "..." : msg
   }
-  return session.workType === "idle" ? "Idle" : "Working"
+
+  return "Ready to go"
 }
 
 export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
-  function SessionCard({ session, index, isFocused, inputOpen, voiceMode, onSendResponse }, ref) {
+  function SessionCard({ session, index, isFocused, inputOpen, voiceMode, onSendResponse, onSelect }, ref) {
     const prevNeedsInputRef = useRef(session.conversation.needsInput)
     const needsInput = session.conversation.needsInput
 
@@ -61,46 +58,41 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
     const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
     const branchName = session.git?.branch ?? ""
     const sessionName = humanizeTitle(session.name ?? "") || session.sessionId.slice(0, 8)
-    const summary = session.summary || getStatusLabel(session)
+    const summary = getSummary(session)
 
     return (
       <div
         ref={ref}
         tabIndex={-1}
-        className="p-5 flex flex-col overflow-hidden relative"
+        className="p-5 flex flex-col overflow-hidden relative cursor-pointer transition-colors duration-150"
+        onClick={() => onSelect(index)}
         style={{
-          backgroundColor: "#ffffff",
-          color: "#000000",
-          border: "1px solid #000000",
-          outline: isFocused ? "3px solid #000000" : "none",
-          outlineOffset: "-1px",
+          backgroundColor: isFocused ? "#000" : "#fff",
+          color: isFocused ? "#fff" : "#000",
+          border: isFocused ? "1px solid #000" : "1px solid #ddd",
+          borderRadius: "12px",
+          outline: "none",
         }}
       >
-        {/* Title flush left + creature right */}
+        {/* Title + creature */}
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-mono font-bold truncate leading-tight">
               {sessionName}
             </h2>
-            <div className="text-xs font-mono mt-1" style={{ color: "#666" }}>
+            <div className="text-xs font-mono mt-1" style={{ color: isFocused ? "#999" : "#666" }}>
               {repoName}
               {branchName && <span> · {branchName}</span>}
             </div>
           </div>
           <div className="shrink-0">
-            <PixelCreature workType={session.workType} size={3} />
+            <PixelCreature workType={session.workType} size={3} inverted={isFocused} />
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="flex items-center gap-2 mb-2">
-          <span
-            className="inline-block w-1.5 h-1.5 shrink-0"
-            style={{ backgroundColor: needsInput ? "#000" : "#bbb" }}
-          />
-          <span className="text-sm font-mono" style={{ color: "#555" }}>
-            {summary}
-          </span>
+        {/* Summary — no bullet */}
+        <div className="text-sm font-mono mb-2" style={{ color: isFocused ? "#ccc" : "#555" }}>
+          {summary}
         </div>
 
         {/* Spacer */}
@@ -113,20 +105,24 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
               totalTokens={session.conversation.tokenUsage.totalTokens}
               contextLimit={1_000_000}
               percentUsed={session.conversation.tokenUsage.contextPercentUsed}
+              isActive={isFocused}
             />
           </div>
         )}
 
-        {/* Input: only show when focused and open */}
+        {/* Input area */}
         {needsInput && isFocused && inputOpen ? (
           <ResponseInput
             onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
             autoFocus
             voiceMode={voiceMode}
           />
-        ) : needsInput && isFocused ? (
-          <div className="mt-3 text-sm font-mono font-bold text-black">
-            ◆ Press spacebar and speak · Enter to type
+        ) : isFocused ? (
+          <div
+            className="mt-3 text-sm font-mono font-bold animate-blink"
+            style={{ color: isFocused ? "#fff" : "#000" }}
+          >
+            ◆ Spacebar to speak · Enter to type
           </div>
         ) : null}
       </div>

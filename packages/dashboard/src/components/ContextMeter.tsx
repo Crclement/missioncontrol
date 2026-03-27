@@ -16,18 +16,21 @@ function formatCompact(n: number): string {
   return String(n)
 }
 
-export function ContextMeter({ totalTokens, contextLimit = 1_000_000 }: ContextMeterProps) {
+export function ContextMeter({ totalTokens, contextLimit = 1_000_000, isActive }: ContextMeterProps) {
   const pct = Math.min(Math.max((totalTokens / contextLimit) * 100, 0), 100)
 
   return (
     <div className="w-full">
-      <div className="w-full h-1" style={{ backgroundColor: "#e0e0e0" }}>
+      <div
+        className="w-full h-1 rounded-full"
+        style={{ backgroundColor: isActive ? "#333" : "#eee" }}
+      >
         <div
-          className="h-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: "#000" }}
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: isActive ? "#fff" : "#000" }}
         />
       </div>
-      <div className="text-xs mt-1 font-mono" style={{ color: "#888" }}>
+      <div className="text-[10px] mt-1 font-mono" style={{ color: isActive ? "#888" : "#aaa" }}>
         {formatCompact(totalTokens)} / {formatCompact(contextLimit)}
       </div>
     </div>

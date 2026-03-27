@@ -101,7 +101,7 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
     return (
       <div className="mt-4">
         <div
-          className="w-full py-3 text-sm font-mono font-bold border border-black text-center cursor-pointer select-none"
+          className="w-full py-3 text-sm font-mono font-bold border border-current text-center cursor-pointer select-none"
           onClick={() => {
             setTyping(true)
             setTimeout(() => textareaRef.current?.focus(), 0)
@@ -126,7 +126,7 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
   return (
     <div className="mt-4">
       <div className="flex items-end gap-2">
-        <span className="text-black text-sm font-mono font-bold select-none pb-px">&gt;</span>
+        <span className="text-current text-sm font-mono font-bold select-none pb-px">&gt;</span>
         <textarea
           ref={textareaRef}
           value={value}
@@ -134,7 +134,7 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
           onKeyDown={handleKeyDown}
           placeholder="type a response..."
           rows={1}
-          className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#888] border-b border-black resize-none leading-relaxed"
+          className="flex-1 bg-transparent text-sm font-mono text-current placeholder:text-[#888] border-b border-current resize-none leading-relaxed"
           style={{ outline: "none", minHeight: "1.5em", maxHeight: "120px" }}
           autoFocus
         />
@@ -144,7 +144,7 @@ export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputPro
           <button
             onClick={handleSend}
             disabled={!value.trim()}
-            className="text-xs font-mono font-bold text-black disabled:text-[#bbb] pb-px"
+            className="text-xs font-mono font-bold text-current disabled:text-[#bbb] pb-px"
           >
             Send
           </button>

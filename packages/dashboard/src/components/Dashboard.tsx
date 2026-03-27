@@ -29,6 +29,7 @@ export function Dashboard() {
     viewMode,
     setShowHelp,
     setViewMode,
+    setFocusedIndex,
   } = useKeyboardNav({
     sessionCount: count,
     cols,
@@ -55,48 +56,40 @@ export function Dashboard() {
   }, [focusedIndex, viewMode])
 
   return (
-    <div className="fixed inset-0 overflow-hidden flex flex-col">
-      <div className="p-4 md:p-12 flex flex-col h-full font-mono">
-        {/* Header */}
-        <div className="flex items-baseline justify-between mb-8 shrink-0 border-b border-black pb-4">
-          <div className="flex items-baseline gap-6">
-            <h1 className="text-lg font-mono font-bold text-black tracking-widest uppercase">
-              Mission Control
-            </h1>
-            {/* View toggle */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`text-xs font-mono transition-colors ${
-                  viewMode === "grid"
-                    ? "text-black font-bold"
-                    : "text-[#666] hover:text-[#333]"
-                }`}
-              >
-                Grid
-              </button>
-              <span className="text-[#888] text-xs">/</span>
-              <button
-                onClick={() => setViewMode("orbital")}
-                className={`text-xs font-mono transition-colors ${
-                  viewMode === "orbital"
-                    ? "text-black font-bold"
-                    : "text-[#666] hover:text-[#333]"
-                }`}
-              >
-                Orbital
-              </button>
-              <span className="text-[10px] text-[#888] font-mono ml-1">[v]</span>
-            </div>
+    <div className="fixed inset-0 overflow-hidden flex flex-col font-mono">
+      {/* Top bar — edge to edge */}
+      <div className="flex items-center justify-between px-4 md:px-8 py-3 border-b border-black/10 shrink-0">
+        <div className="flex items-center gap-4">
+          <h1 className="text-xs font-mono font-bold text-black tracking-[0.2em] uppercase">
+            Mission Control
+          </h1>
+          <div className="flex items-center gap-2 text-[10px] font-mono">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={viewMode === "grid" ? "text-black font-bold" : "text-[#aaa]"}
+            >
+              Grid
+            </button>
+            <span className="text-[#ccc]">/</span>
+            <button
+              onClick={() => setViewMode("orbital")}
+              className={viewMode === "orbital" ? "text-black font-bold" : "text-[#aaa]"}
+            >
+              Orbital
+            </button>
           </div>
-          <StatsBar sessions={sortedSessions} connectionState={connectionState} />
         </div>
+        <StatsBar sessions={sortedSessions} connectionState={connectionState} />
+      </div>
+
+      {/* Content area with padding */}
+      <div className="flex-1 overflow-hidden flex flex-col p-3 md:p-6 min-h-0">
 
         {/* Content */}
         {sortedSessions.length > 0 ? (
           viewMode === "grid" ? (
             <div
-              className="flex-1 grid gap-0 min-h-0"
+              className="flex-1 grid gap-3 min-h-0"
               style={{
                 gridTemplateColumns: `repeat(${cols}, 1fr)`,
                 gridTemplateRows: `repeat(${Math.ceil(count / cols)}, 1fr)`,
@@ -112,6 +105,7 @@ export function Dashboard() {
                   inputOpen={inputOpen && focusedIndex === i}
                   voiceMode={voiceMode}
                   onSendResponse={sendResponse}
+                  onSelect={setFocusedIndex}
                 />
               ))}
             </div>
