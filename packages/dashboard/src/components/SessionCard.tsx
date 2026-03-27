@@ -26,16 +26,32 @@ function humanizeTitle(raw: string): string {
 
 function getSummary(session: EnrichedSession): string {
   if (session.summary) return session.summary
-
   if (session.conversation.messageCount === 0) return "Ready to go"
-
-  // Show the last user message as context if we have it
   if (session.conversation.lastUserMessage) {
     const msg = session.conversation.lastUserMessage
     return msg.length > 80 ? msg.slice(0, 80) + "..." : msg
   }
-
   return "Ready to go"
+}
+
+function getStatusInfo(session: EnrichedSession): { label: string; isWorking: boolean } {
+  if (session.conversation.needsInput) {
+    return { label: "WAITING FOR YOU", isWorking: false }
+  }
+  if (session.conversation.messageCount === 0) {
+    return { label: "IDLE", isWorking: false }
+  }
+  const tool = session.conversation.lastToolUse
+  if (tool) {
+    const m: Record<string, string> = {
+      Edit: "EDITING", Write: "WRITING", Read: "READING",
+      Bash: "RUNNING", Grep: "SEARCHING", Glob: "FINDING FILES",
+      Agent: "SUBAGENT",
+    }
+    return { label: m[tool] ?? "WORKING", isWorking: true }
+  }
+  if (session.workType === "idle") return { label: "IDLE", isWorking: false }
+  return { label: "WORKING", isWorking: true }
 }
 
 export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
@@ -59,72 +75,112 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
     const branchName = session.git?.branch ?? ""
     const sessionName = humanizeTitle(session.name ?? "") || session.sessionId.slice(0, 8)
     const summary = getSummary(session)
+    const { label: statusLabel, isWorking } = getStatusInfo(session)
+
+    // Visual states:
+    // Focused: black bg, white text
+    // Working (not focused): white bg, black left accent bar
+    // Waiting (not focused): light bg, dashed left accent
+    const bg = isFocused ? "#000" : "#fff"
+    const fg = isFocused ? "#fff" : "#000"
+    const borderColor = isFocused ? "#000" : needsInput ? "#000" : isWorking ? "#ccc" : "#ddd"
 
     return (
       <div
         ref={ref}
         tabIndex={-1}
-        className="p-5 flex flex-col overflow-hidden relative cursor-pointer transition-colors duration-150"
+        className="flex flex-col overflow-hidden relative cursor-pointer transition-colors duration-150"
         onClick={() => onSelect(index)}
         style={{
-          backgroundColor: isFocused ? "#000" : "#fff",
-          color: isFocused ? "#fff" : "#000",
-          border: isFocused ? "1px solid #000" : "1px solid #ccc",
+          backgroundColor: bg,
+          color: fg,
+          border: `1px solid ${borderColor}`,
           borderRadius: "12px",
           outline: "none",
         }}
       >
-        {/* Title + creature */}
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base font-mono font-bold truncate leading-tight">
-              {sessionName}
-            </h2>
-            <div className="text-xs font-mono mt-1" style={{ color: isFocused ? "#aaa" : "#666" }}>
-              {repoName}
-              {branchName && <span> · {branchName}</span>}
+        {/* Status strip at top */}
+        <div
+          className="px-5 py-1.5 flex items-center justify-between text-[10px] font-mono font-bold tracking-widest"
+          style={{
+            backgroundColor: isFocused
+              ? "#222"
+              : needsInput
+                ? "#000"
+                : isWorking
+                  ? "#f0f0f0"
+                  : "#f8f8f8",
+            color: isFocused
+              ? "#888"
+              : needsInput
+                ? "#fff"
+                : isWorking
+                  ? "#000"
+                  : "#aaa",
+            borderTopLeftRadius: "11px",
+            borderTopRightRadius: "11px",
+          }}
+        >
+          <span>{statusLabel}</span>
+          {needsInput && !isFocused && (
+            <span className="animate-blink">●</span>
+          )}
+          {isWorking && !isFocused && (
+            <span style={{ color: "#000" }}>↻</span>
+          )}
+        </div>
+
+        {/* Card body */}
+        <div className="p-5 pt-3 flex flex-col flex-1">
+          {/* Title + creature */}
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-mono font-bold truncate leading-tight">
+                {sessionName}
+              </h2>
+              <div className="text-xs font-mono mt-1" style={{ color: isFocused ? "#aaa" : "#888" }}>
+                {repoName}
+                {branchName && <span> · {branchName}</span>}
+              </div>
+            </div>
+            <div className="shrink-0">
+              <PixelCreature workType={session.workType} size={3} inverted={isFocused} variant={index} />
             </div>
           </div>
-          <div className="shrink-0">
-            <PixelCreature workType={session.workType} size={3} inverted={isFocused} variant={index} />
+
+          {/* Summary */}
+          <div className="text-sm font-mono mb-2" style={{ color: isFocused ? "#ccc" : "#555" }}>
+            {summary}
           </div>
-        </div>
 
-        {/* Summary — no bullet */}
-        <div className="text-sm font-mono mb-2" style={{ color: isFocused ? "#ccc" : "#555" }}>
-          {summary}
-        </div>
+          {/* Spacer */}
+          <div className="flex-1" />
 
-        {/* Spacer */}
-        <div className="flex-1" />
+          {/* Context meter */}
+          {session.conversation.tokenUsage && (
+            <div className="mt-2">
+              <ContextMeter
+                totalTokens={session.conversation.tokenUsage.totalTokens}
+                contextLimit={1_000_000}
+                percentUsed={session.conversation.tokenUsage.contextPercentUsed}
+                isActive={isFocused}
+              />
+            </div>
+          )}
 
-        {/* Context meter */}
-        {session.conversation.tokenUsage && (
-          <div className="mt-2">
-            <ContextMeter
-              totalTokens={session.conversation.tokenUsage.totalTokens}
-              contextLimit={1_000_000}
-              percentUsed={session.conversation.tokenUsage.contextPercentUsed}
-              isActive={isFocused}
+          {/* Input area */}
+          {needsInput && isFocused && inputOpen ? (
+            <ResponseInput
+              onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
+              autoFocus
+              voiceMode={voiceMode}
             />
-          </div>
-        )}
-
-        {/* Input area */}
-        {needsInput && isFocused && inputOpen ? (
-          <ResponseInput
-            onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
-            autoFocus
-            voiceMode={voiceMode}
-          />
-        ) : isFocused ? (
-          <div
-            className="mt-3 text-sm font-mono font-bold animate-blink"
-            style={{ color: isFocused ? "#fff" : "#000" }}
-          >
-            ◆ Spacebar to speak · Enter to type
-          </div>
-        ) : null}
+          ) : isFocused ? (
+            <div className="mt-3 text-sm font-mono font-bold animate-blink" style={{ color: "#fff" }}>
+              ◆ Spacebar to speak · Enter to type
+            </div>
+          ) : null}
+        </div>
       </div>
     )
   },
