@@ -164,9 +164,8 @@ export function Dashboard() {
               {[
                 ["\u2190 \u2191 \u2192 \u2193", "Navigate between sessions"],
                 ["1-9", "Jump to session"],
-                ["Space", "Dictate with Wispr Flow"],
+                ["Space", "Speak with Wispr Flow"],
                 ["Enter", "Type a response"],
-                ["Tab", "Switch voice / type mode"],
                 ["v", "Toggle Grid / Orbital view"],
                 ["Esc", "Close / unfocus"],
                 ["r", "Reconnect"],

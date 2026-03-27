@@ -19,13 +19,12 @@ function humanizeTitle(raw: string): string {
   return raw
     .replace(/^claude-code-/, "")
     .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ")
 }
 
 function getStatusLabel(session: EnrichedSession): string {
   if (session.conversation.needsInput) return "Awaiting input"
-  if (session.workType === "idle") return "Idle"
   const tool = session.conversation.lastToolUse
   if (tool) {
     const m: Record<string, string> = {
@@ -39,7 +38,7 @@ function getStatusLabel(session: EnrichedSession): string {
     }
     return m[tool] ?? tool
   }
-  return "Working"
+  return session.workType === "idle" ? "Idle" : "Working"
 }
 
 export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
@@ -62,8 +61,6 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
     const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
     const branchName = session.git?.branch ?? ""
     const sessionName = humanizeTitle(session.name ?? "") || session.sessionId.slice(0, 8)
-
-    // AI summary or fallback
     const summary = session.summary || getStatusLabel(session)
 
     return (
@@ -79,11 +76,8 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
           outlineOffset: "-1px",
         }}
       >
-        {/* Row 1: Number + Title + Creature */}
-        <div className="flex items-start gap-3 mb-3">
-          <span className="text-xl font-mono font-bold leading-none shrink-0 mt-0.5" style={{ color: "#bbb" }}>
-            {index + 1}
-          </span>
+        {/* Title flush left + creature right */}
+        <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-mono font-bold truncate leading-tight">
               {sessionName}
@@ -98,13 +92,13 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
           </div>
         </div>
 
-        {/* Row 2: Status + Summary */}
+        {/* Summary */}
         <div className="flex items-center gap-2 mb-2">
           <span
             className="inline-block w-1.5 h-1.5 shrink-0"
             style={{ backgroundColor: needsInput ? "#000" : "#bbb" }}
           />
-          <span className="text-sm font-mono truncate" style={{ color: "#555" }}>
+          <span className="text-sm font-mono" style={{ color: "#555" }}>
             {summary}
           </span>
         </div>
@@ -116,14 +110,14 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
         {session.conversation.tokenUsage && (
           <div className="mt-2">
             <ContextMeter
-              percentUsed={session.conversation.tokenUsage.contextPercentUsed}
               totalTokens={session.conversation.tokenUsage.totalTokens}
               contextLimit={1_000_000}
+              percentUsed={session.conversation.tokenUsage.contextPercentUsed}
             />
           </div>
         )}
 
-        {/* Input area for needs-input sessions */}
+        {/* Input: only show when focused and open */}
         {needsInput && isFocused && inputOpen ? (
           <ResponseInput
             onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}

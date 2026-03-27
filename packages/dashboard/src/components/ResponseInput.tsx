@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 
 type SendState = "idle" | "sending" | "sent" | "error"
-type InputMode = "voice" | "type"
 
 interface ResponseInputProps {
   onSend: (message: string) => void
@@ -11,62 +10,59 @@ interface ResponseInputProps {
   voiceMode?: boolean
 }
 
-export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }: ResponseInputProps) {
+export function ResponseInput({ onSend, autoFocus, voiceMode }: ResponseInputProps) {
   const [value, setValue] = useState("")
   const [sendState, setSendState] = useState<SendState>("idle")
-  const [mode, setMode] = useState<InputMode>(initialVoiceMode ? "voice" : "type")
-  const [dictationVisible, setDictationVisible] = useState(false)
+  const [typing, setTyping] = useState(!voiceMode)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const hiddenRef = useRef<HTMLTextAreaElement>(null)
-  const prevValueRef = useRef("")
 
-  // Sync mode when voiceMode prop changes
-  useEffect(() => {
-    setMode(initialVoiceMode ? "voice" : "type")
-  }, [initialVoiceMode])
-
-  // Auto-focus based on mode
+  // Voice mode: focus hidden textarea for Wispr Flow
   useEffect(() => {
     if (!autoFocus) return
-    if (mode === "type") {
+    if (typing) {
       textareaRef.current?.focus()
-    } else if (mode === "voice") {
-      // Focus hidden textarea to activate Wispr Flow
+    } else {
       hiddenRef.current?.focus()
     }
-  }, [autoFocus, mode])
+  }, [autoFocus, typing])
 
-  // Detect dictation: text appearing rapidly in hidden textarea
+  // If voiceMode prop changes, sync
+  useEffect(() => {
+    setTyping(!voiceMode)
+  }, [voiceMode])
+
+  // Detect dictation in hidden field
+  const prevLen = useRef(0)
   const handleHiddenChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newVal = e.target.value
-    setValue(newVal)
-    if (newVal.length > prevValueRef.current.length + 3) {
-      setDictationVisible(true)
+    const v = e.target.value
+    setValue(v)
+    if (v.length > prevLen.current + 2) {
+      // Dictation detected - show the textarea with dictated text
+      setTyping(true)
+      setTimeout(() => textareaRef.current?.focus(), 0)
     }
-    prevValueRef.current = newVal
+    prevLen.current = v.length
   }, [])
 
-  // Auto-resize visible textarea
+  // Auto-resize
   useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    textarea.style.height = "auto"
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px"
+    const ta = textareaRef.current
+    if (!ta) return
+    ta.style.height = "auto"
+    ta.style.height = Math.min(ta.scrollHeight, 120) + "px"
   }, [value])
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim()
     if (!trimmed) return
-
     setSendState("sending")
     try {
       onSend(trimmed)
       setValue("")
-      setDictationVisible(false)
-      prevValueRef.current = ""
+      prevLen.current = 0
+      setTyping(false)
       setSendState("sent")
-      // Return to voice mode after sending
-      setMode("voice")
       setTimeout(() => setSendState("idle"), 1500)
     } catch {
       setSendState("error")
@@ -79,10 +75,6 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
       e.preventDefault()
       handleSend()
     }
-    if (e.key === "Tab") {
-      e.preventDefault()
-      setMode(mode === "voice" ? "type" : "voice")
-    }
     e.stopPropagation()
   }
 
@@ -91,13 +83,9 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
       e.preventDefault()
       handleSend()
     }
-    if (e.key === "Tab") {
-      e.preventDefault()
-      setMode("type")
-    }
-    // Any character key (not space, not modifier) switches to type mode
+    // Any printable character → switch to type mode
     if (e.key.length === 1 && e.key !== " " && !e.metaKey && !e.ctrlKey && !e.altKey) {
-      setMode("type")
+      setTyping(true)
       setValue((prev) => prev + e.key)
       e.preventDefault()
       setTimeout(() => textareaRef.current?.focus(), 0)
@@ -105,114 +93,63 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
     e.stopPropagation()
   }
 
-  const switchToType = () => {
-    setMode("type")
-    setTimeout(() => textareaRef.current?.focus(), 0)
+  const stateLabel =
+    sendState === "sending" ? "..." : sendState === "sent" ? "sent" : sendState === "error" ? "err" : null
+
+  // Voice mode: show prompt, no visible input
+  if (!typing) {
+    return (
+      <div className="mt-4">
+        <div
+          className="w-full py-3 text-sm font-mono font-bold border border-black text-center cursor-pointer select-none"
+          onClick={() => {
+            setTyping(true)
+            setTimeout(() => textareaRef.current?.focus(), 0)
+          }}
+        >
+          ◆ Press spacebar and speak to respond
+        </div>
+        {/* Hidden textarea for Wispr Flow */}
+        <textarea
+          ref={hiddenRef}
+          value={value}
+          onChange={handleHiddenChange}
+          onKeyDown={handleHiddenKeyDown}
+          style={{ position: "absolute", left: "-9999px", opacity: 0 }}
+          tabIndex={-1}
+        />
+      </div>
+    )
   }
 
-  const stateLabel =
-    sendState === "sending"
-      ? "..."
-      : sendState === "sent"
-        ? "sent"
-        : sendState === "error"
-          ? "err"
-          : null
-
+  // Type mode: show text input
   return (
     <div className="mt-4">
-      {mode === "voice" && !dictationVisible ? (
-        /* Voice mode: large clear prompt */
-        <div>
+      <div className="flex items-end gap-2">
+        <span className="text-black text-sm font-mono font-bold select-none pb-px">&gt;</span>
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => { setValue(e.target.value); prevLen.current = e.target.value.length }}
+          onKeyDown={handleKeyDown}
+          placeholder="type a response..."
+          rows={1}
+          className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#888] border-b border-black resize-none leading-relaxed"
+          style={{ outline: "none", minHeight: "1.5em", maxHeight: "120px" }}
+          autoFocus
+        />
+        {stateLabel ? (
+          <span className="text-xs font-mono text-[#666] pb-px">{stateLabel}</span>
+        ) : (
           <button
-            onClick={switchToType}
-            className="w-full py-3 text-sm font-mono font-bold border border-black flex items-center justify-center gap-2 hover:bg-black hover:text-white transition-colors"
+            onClick={handleSend}
+            disabled={!value.trim()}
+            className="text-xs font-mono font-bold text-black disabled:text-[#bbb] pb-px"
           >
-            <span>&#9670;</span> Press spacebar and speak to respond
+            Send
           </button>
-          {/* Hidden textarea for Wispr Flow activation */}
-          <textarea
-            ref={hiddenRef}
-            value={value}
-            onChange={handleHiddenChange}
-            onKeyDown={handleHiddenKeyDown}
-            className="absolute opacity-0 w-0 h-0 pointer-events-none"
-            style={{ position: "absolute", left: "-9999px" }}
-            tabIndex={-1}
-          />
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-[#666] font-mono">
-              Tab to type
-            </span>
-          </div>
-        </div>
-      ) : mode === "voice" && dictationVisible ? (
-        /* Voice mode with dictation visible */
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-mono font-bold animate-pulse">&#9679;</span>
-            <span className="text-xs font-mono text-[#666]">Listening...</span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="text-black text-sm font-mono font-bold select-none pb-px">&#9670;</span>
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#888] border-b border-black focus:border-black transition-colors resize-none leading-relaxed"
-              style={{ outline: "none", minHeight: "1.5em", maxHeight: "120px" }}
-              autoFocus
-            />
-            {stateLabel ? (
-              <span className="text-xs font-mono text-[#666] pb-px">{stateLabel}</span>
-            ) : (
-              <button
-                onClick={handleSend}
-                disabled={!value.trim()}
-                className="text-xs font-mono font-bold text-black hover:text-black disabled:text-[#888] transition-colors pb-px"
-              >
-                Send
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* Type mode */
-        <div>
-          <div className="flex items-end gap-2">
-            <span className="text-black text-sm font-mono font-bold select-none pb-px">&gt;</span>
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="type a response..."
-              rows={1}
-              className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#888] border-b border-black focus:border-black transition-colors resize-none leading-relaxed"
-              style={{ outline: "none", minHeight: "1.5em", maxHeight: "120px" }}
-              autoFocus
-            />
-            {stateLabel ? (
-              <span className="text-xs font-mono text-[#666] pb-px">{stateLabel}</span>
-            ) : (
-              <button
-                onClick={handleSend}
-                disabled={!value.trim()}
-                className="text-xs font-mono font-bold text-black hover:text-black disabled:text-[#888] transition-colors pb-px"
-              >
-                Send
-              </button>
-            )}
-          </div>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-[#666] font-mono">
-              Tab for voice
-            </span>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
