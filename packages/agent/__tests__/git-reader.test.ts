@@ -16,8 +16,10 @@ describe("getGitInfo", () => {
 
   function setupExecSync(responses: Record<string, string>) {
     mockExecSync.mockImplementation((cmd: string) => {
+      // Always handle git --version (isGitAvailable check)
+      if (typeof cmd === "string" && cmd.includes("git --version")) return "git version 2.40.0";
       for (const [pattern, result] of Object.entries(responses)) {
-        if (cmd.includes(pattern)) return result;
+        if (typeof cmd === "string" && cmd.includes(pattern)) return result;
       }
       throw new Error(`Unexpected command: ${cmd}`);
     });
@@ -90,6 +92,7 @@ describe("getGitInfo", () => {
 
   it("handles repos without a remote", async () => {
     mockExecSync.mockImplementation((cmd: string) => {
+      if (typeof cmd === "string" && cmd.includes("git --version")) return "git version 2.40.0";
       if (typeof cmd === "string" && cmd.includes("branch --show-current")) return "main";
       if (typeof cmd === "string" && cmd.includes("remote get-url")) throw new Error("No remote");
       if (typeof cmd === "string" && cmd.includes("git config")) return "testuser";
@@ -105,7 +108,8 @@ describe("getGitInfo", () => {
   });
 
   it("returns undefined for non-git directories", async () => {
-    mockExecSync.mockImplementation(() => {
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (typeof cmd === "string" && cmd.includes("git --version")) return "git version 2.40.0";
       throw new Error("fatal: not a git repository");
     });
 
@@ -116,6 +120,7 @@ describe("getGitInfo", () => {
 
   it("falls back to directory name for repo when no remote", async () => {
     mockExecSync.mockImplementation((cmd: string) => {
+      if (typeof cmd === "string" && cmd.includes("git --version")) return "git version 2.40.0";
       if (typeof cmd === "string" && cmd.includes("branch --show-current")) return "main";
       if (typeof cmd === "string" && cmd.includes("remote get-url")) throw new Error("No remote");
       if (typeof cmd === "string" && cmd.includes("git config")) return "";
@@ -155,6 +160,7 @@ describe("getGitInfo", () => {
 
   it("handles empty git username gracefully", async () => {
     mockExecSync.mockImplementation((cmd: string) => {
+      if (typeof cmd === "string" && cmd.includes("git --version")) return "git version 2.40.0";
       if (typeof cmd === "string" && cmd.includes("branch --show-current")) return "main";
       if (typeof cmd === "string" && cmd.includes("remote get-url"))
         return "git@github.com:Org/repo.git";

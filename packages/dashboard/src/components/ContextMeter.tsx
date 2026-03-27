@@ -30,7 +30,7 @@ export function ContextMeter({ totalTokens, contextLimit = 1_000_000, isActive }
           style={{ width: `${pct}%`, backgroundColor: isActive ? "#fff" : "#000" }}
         />
       </div>
-      <div className="text-[10px] mt-1 font-mono" style={{ color: isActive ? "#888" : "#aaa" }}>
+      <div className="text-[10px] mt-1 font-mono" style={{ color: isActive ? "#aaa" : "#888" }}>
         {formatCompact(totalTokens)} / {formatCompact(contextLimit)}
       </div>
     </div>

@@ -69,7 +69,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
         style={{
           backgroundColor: isFocused ? "#000" : "#fff",
           color: isFocused ? "#fff" : "#000",
-          border: isFocused ? "1px solid #000" : "1px solid #ddd",
+          border: isFocused ? "1px solid #000" : "1px solid #ccc",
           borderRadius: "12px",
           outline: "none",
         }}
@@ -80,13 +80,13 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
             <h2 className="text-base font-mono font-bold truncate leading-tight">
               {sessionName}
             </h2>
-            <div className="text-xs font-mono mt-1" style={{ color: isFocused ? "#999" : "#666" }}>
+            <div className="text-xs font-mono mt-1" style={{ color: isFocused ? "#aaa" : "#666" }}>
               {repoName}
               {branchName && <span> · {branchName}</span>}
             </div>
           </div>
           <div className="shrink-0">
-            <PixelCreature workType={session.workType} size={3} inverted={isFocused} />
+            <PixelCreature workType={session.workType} size={3} inverted={isFocused} variant={index} />
           </div>
         </div>
 

@@ -36,9 +36,9 @@ export function StatsBar({ sessions, connectionState }: StatsBarProps) {
       <span className="inline-flex items-center gap-2">
         <span
           className="inline-block w-2 h-2"
-          style={{ backgroundColor: isConnected ? "#000" : "#999" }}
+          style={{ backgroundColor: isConnected ? "#000" : "#888" }}
         />
-        <span style={{ color: isConnected ? "#000" : "#999" }}>{connectionState}</span>
+        <span style={{ color: isConnected ? "#000" : "#888" }}>{connectionState}</span>
       </span>
 
       <span>

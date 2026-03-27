@@ -9,8 +9,20 @@ interface CachedGitInfo {
 
 const cache = new Map<string, CachedGitInfo>();
 let cachedUserName: string | undefined;
+let gitAvailable: boolean | undefined;
 
 const CACHE_TTL_MS = 30_000;
+
+function isGitAvailable(): boolean {
+  if (gitAvailable !== undefined) return gitAvailable;
+  try {
+    execSync("git --version", { encoding: "utf-8", timeout: 3000, stdio: ["pipe", "pipe", "pipe"] });
+    gitAvailable = true;
+  } catch {
+    gitAvailable = false;
+  }
+  return gitAvailable;
+}
 
 function getGlobalUserName(): string {
   if (cachedUserName !== undefined) return cachedUserName;
@@ -18,6 +30,7 @@ function getGlobalUserName(): string {
     cachedUserName = execSync("git config --global user.name", {
       encoding: "utf-8",
       timeout: 3000,
+      stdio: ["pipe", "pipe", "pipe"],
     }).trim();
   } catch {
     cachedUserName = "";
@@ -35,16 +48,25 @@ function exec(cmd: string, cwd: string): string {
 }
 
 function parseRemoteUrl(remote: string): { org?: string; repo: string } | undefined {
-  // SSH: git@github.com:Org/repo.git
-  const sshMatch = remote.match(/git@[^:]+:([^/]+)\/([^/.]+)(?:\.git)?$/);
+  // SSH: git@github.com:Org/repo.git  (also works for gitlab, bitbucket, self-hosted)
+  const sshMatch = remote.match(/git@[^:]+:(.+?)\/([^/.]+?)(?:\.git)?\s*$/);
   if (sshMatch) {
-    return { org: sshMatch[1], repo: sshMatch[2] };
+    // org might be nested (e.g. gitlab subgroups: group/subgroup)
+    const orgParts = sshMatch[1];
+    return { org: orgParts, repo: sshMatch[2] };
   }
 
-  // HTTPS: https://github.com/Org/repo.git
-  const httpsMatch = remote.match(/https?:\/\/[^/]+\/([^/]+)\/([^/.]+)(?:\.git)?$/);
+  // HTTPS: https://github.com/Org/repo.git  (also gitlab, bitbucket, self-hosted)
+  // Handle arbitrarily deep paths (e.g. gitlab subgroups)
+  const httpsMatch = remote.match(/https?:\/\/[^/]+\/(.+?)\/([^/.]+?)(?:\.git)?\s*$/);
   if (httpsMatch) {
     return { org: httpsMatch[1], repo: httpsMatch[2] };
+  }
+
+  // Last resort: try to extract just the repo name from the URL
+  const lastSegment = remote.replace(/\.git\s*$/, "").split("/").pop()?.trim();
+  if (lastSegment) {
+    return { repo: lastSegment };
   }
 
   return undefined;
@@ -52,9 +74,13 @@ function parseRemoteUrl(remote: string): { org?: string; repo: string } | undefi
 
 export async function getGitInfo(cwd: string): Promise<GitInfo | undefined> {
   try {
+    if (!isGitAvailable()) {
+      return undefined;
+    }
+
     const branch = exec(`git -C "${cwd}" branch --show-current`, cwd);
 
-    // Check cache
+    // Check cache -- must match both branch and TTL
     const cached = cache.get(cwd);
     if (
       cached &&
@@ -73,8 +99,10 @@ export async function getGitInfo(cwd: string): Promise<GitInfo | undefined> {
 
     const parsed = remote ? parseRemoteUrl(remote) : undefined;
     const userName = getGlobalUserName();
-    const isPersonal = parsed?.org
-      ? parsed.org.toLowerCase() === userName.toLowerCase()
+    // For nested orgs (gitlab subgroups), compare only the first segment
+    const orgFirstSegment = parsed?.org?.split("/")[0];
+    const isPersonal = orgFirstSegment
+      ? orgFirstSegment.toLowerCase() === userName.toLowerCase()
       : false;
 
     const info: GitInfo = {
@@ -88,7 +116,7 @@ export async function getGitInfo(cwd: string): Promise<GitInfo | undefined> {
     cache.set(cwd, { info, branch, timestamp: Date.now() });
     return info;
   } catch {
-    // Not a git repo
+    // Not a git repo or git command failed
     cache.set(cwd, { info: undefined, branch: "", timestamp: Date.now() });
     return undefined;
   }

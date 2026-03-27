@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { SessionCard } from "../../src/components/SessionCard";
 import type { EnrichedSession } from "@missioncontrol/shared";
 
@@ -42,12 +42,15 @@ describe("SessionCard", () => {
     index: 0,
     isFocused: false,
     inputOpen: false,
+    voiceMode: false,
     onSendResponse: vi.fn(),
+    onSelect: vi.fn(),
   };
 
-  it("renders session name", () => {
+  it("renders humanized session name", () => {
     render(<SessionCard session={makeSession()} ref={null} {...defaultProps} />);
-    expect(screen.getByText("test-session")).toBeInTheDocument();
+    // humanizeTitle("test-session") -> removes "claude-code-" prefix (not present), then capitalizes
+    expect(screen.getByText("Test Session")).toBeInTheDocument();
   });
 
   it("renders session ID prefix when no name is provided", () => {
@@ -77,14 +80,7 @@ describe("SessionCard", () => {
     expect(screen.getByText(/my-project/)).toBeInTheDocument();
   });
 
-  it("shows the 1-indexed position", () => {
-    render(
-      <SessionCard session={makeSession()} ref={null} {...defaultProps} index={2} />
-    );
-    expect(screen.getByText("3")).toBeInTheDocument();
-  });
-
-  it("shows user message in quotes", () => {
+  it("shows user message as summary", () => {
     const session = makeSession({
       conversation: {
         lastUserMessage: "Fix the authentication bug",
@@ -98,7 +94,7 @@ describe("SessionCard", () => {
     expect(screen.getByText(/Fix the authentication bug/)).toBeInTheDocument();
   });
 
-  it("does not render message area when no user message", () => {
+  it("shows 'Ready to go' when no messages", () => {
     const session = makeSession({
       conversation: {
         lastUserMessage: "",
@@ -108,24 +104,16 @@ describe("SessionCard", () => {
         messageCount: 0,
       },
     });
-    const { container } = render(
-      <SessionCard session={session} ref={null} {...defaultProps} />
-    );
-    const messageAreas = container.querySelectorAll(".line-clamp-2");
-    expect(messageAreas.length).toBe(0);
+    render(<SessionCard session={session} ref={null} {...defaultProps} />);
+    expect(screen.getByText("Ready to go")).toBeInTheDocument();
   });
 
-  it("renders subagent list when subagents exist", () => {
+  it("shows summary when session has summary field", () => {
     const session = makeSession({
-      subagents: [
-        { id: "a1", agentType: "coder", description: "Working on auth" },
-        { id: "a2", agentType: "reviewer", description: "Reviewing PR" },
-      ],
+      summary: "Working on auth module refactor",
     });
     render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.getByText("coder")).toBeInTheDocument();
-    expect(screen.getByText("reviewer")).toBeInTheDocument();
-    expect(screen.getByText("Working on auth")).toBeInTheDocument();
+    expect(screen.getByText("Working on auth module refactor")).toBeInTheDocument();
   });
 
   it("renders context meter when token usage exists", () => {
@@ -149,11 +137,11 @@ describe("SessionCard", () => {
       },
     });
     render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.getByText(/35% context/)).toBeInTheDocument();
-    expect(screen.getByText(/7\.0K tokens/)).toBeInTheDocument();
+    // ContextMeter now shows "7K / 1M"
+    expect(screen.getByText("7K / 1M")).toBeInTheDocument();
   });
 
-  it("renders response input when needsInput is true", () => {
+  it("renders response input when needsInput, isFocused, and inputOpen", () => {
     const session = makeSession({
       conversation: {
         lastUserMessage: "Help",
@@ -163,8 +151,17 @@ describe("SessionCard", () => {
         messageCount: 2,
       },
     });
-    render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.getByPlaceholderText("speak with wispr flow...")).toBeInTheDocument();
+    render(
+      <SessionCard
+        session={session}
+        ref={null}
+        {...defaultProps}
+        isFocused={true}
+        inputOpen={true}
+        voiceMode={false}
+      />
+    );
+    expect(screen.getByPlaceholderText("type a response...")).toBeInTheDocument();
   });
 
   it("does not render response input when not needing input", () => {
@@ -178,57 +175,40 @@ describe("SessionCard", () => {
       },
     });
     render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.queryByPlaceholderText("speak with wispr flow...")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("type a response...")).not.toBeInTheDocument();
   });
 
-  it("applies focused border color when focused", () => {
+  it("applies focused style (black background) when focused", () => {
     const { container } = render(
       <SessionCard session={makeSession()} ref={null} {...defaultProps} isFocused={true} />
     );
     const card = container.firstChild as HTMLElement;
-    expect(card.style.border).toContain("rgb(107, 107, 107)");
+    expect(card.style.backgroundColor).toBe("rgb(0, 0, 0)");
+    expect(card.style.color).toBe("rgb(255, 255, 255)");
   });
 
-  it("applies ochre border when needsInput is true", () => {
-    const session = makeSession({
-      conversation: {
-        lastUserMessage: "",
-        lastAssistantText: "",
-        lastMessageRole: "assistant",
-        needsInput: true,
-        messageCount: 1,
-      },
-    });
+  it("applies unfocused style (white background) when not focused", () => {
     const { container } = render(
-      <SessionCard session={session} ref={null} {...defaultProps} />
+      <SessionCard session={makeSession()} ref={null} {...defaultProps} isFocused={false} />
     );
     const card = container.firstChild as HTMLElement;
-    expect(card.style.border).toContain("rgb(196, 149, 106)");
+    expect(card.style.backgroundColor).toBe("rgb(255, 255, 255)");
+    expect(card.style.color).toBe("rgb(0, 0, 0)");
   });
 
-  it("renders OrgBadge when git info has org", () => {
-    const session = makeSession({
-      git: {
-        repo: "repo",
-        branch: "main",
-        remote: "git@github.com:MyOrg/repo.git",
-        isPersonal: false,
-        org: "MyOrg",
-      },
-    });
-    render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.getByText(/MyOrg/)).toBeInTheDocument();
+  it("calls onSelect with index when clicked", () => {
+    const onSelect = vi.fn();
+    const { container } = render(
+      <SessionCard session={makeSession()} ref={null} {...defaultProps} index={3} onSelect={onSelect} />
+    );
+    fireEvent.click(container.firstChild as HTMLElement);
+    expect(onSelect).toHaveBeenCalledWith(3);
   });
 
-  it("renders the creature ascii art", () => {
-    const session = makeSession({ creature: "(*_*)" });
-    render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.getByText("(*_*)")).toBeInTheDocument();
-  });
-
-  it("renders StatusBadge with correct work type", () => {
-    const session = makeSession({ workType: "debugging" });
-    render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.getByText("debugging")).toBeInTheDocument();
+  it("shows prompt text when focused but input not open", () => {
+    render(
+      <SessionCard session={makeSession()} ref={null} {...defaultProps} isFocused={true} inputOpen={false} />
+    );
+    expect(screen.getByText(/Spacebar to speak/)).toBeInTheDocument();
   });
 });

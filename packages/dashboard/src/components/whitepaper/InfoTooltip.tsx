@@ -27,20 +27,19 @@ export function InfoTooltip({ term, definition }: InfoTooltipProps) {
       onMouseLeave={() => setShow(false)}
     >
       <span
-        className="text-slate"
+        className="text-[#000000] font-bold"
         style={{
-          borderBottom: "1px dashed #6b8cae",
+          borderBottom: "1px dashed #000000",
         }}
       >
         {term}
       </span>
       {show && (
         <span
-          className="absolute z-50 left-0 w-64 p-3 text-xs text-[#e0e0e0] font-mono"
+          className="absolute z-50 left-0 w-64 p-3 text-xs text-[#000000] font-mono"
           style={{
-            backgroundColor: "#161616",
-            border: "1px solid #2a2a2a",
-            borderRadius: "2px",
+            backgroundColor: "#ffffff",
+            border: "1px solid #000000",
             ...(above ? { bottom: "100%", marginBottom: "4px" } : { top: "100%", marginTop: "4px" }),
           }}
         >

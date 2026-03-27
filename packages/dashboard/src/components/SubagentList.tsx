@@ -11,7 +11,7 @@ export function SubagentList({ subagents, isActive }: SubagentListProps) {
   if (subagents.length === 0) return null
 
   const typeColor = isActive ? "#fff" : "#000"
-  const descColor = isActive ? "#999" : "#666"
+  const descColor = isActive ? "#aaa" : "#666"
 
   return (
     <div className="mt-2 space-y-1">

@@ -114,7 +114,9 @@ export function Dashboard() {
               sessions={sortedSessions}
               focusedIndex={focusedIndex}
               inputOpen={inputOpen && focusedIndex >= 0}
+              voiceMode={voiceMode}
               onSendResponse={sendResponse}
+              onSelect={setFocusedIndex}
             />
           )
         ) : (

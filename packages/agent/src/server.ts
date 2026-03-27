@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import { existsSync } from "fs";
 import { WebSocketServer, type WebSocket } from "ws";
 import type {
+  ConversationState,
   EnrichedSession,
   RawSession,
   WorkType,
@@ -76,11 +78,20 @@ async function enrichSession(
   raw: RawSession,
   configDir: string
 ): Promise<EnrichedSession> {
+  // If CWD doesn't exist, use safe defaults for fs-dependent reads
+  const cwdExists = existsSync(raw.cwd);
+
   const [git, conversation, subagents, recentMessages] = await Promise.all([
-    getGitInfo(raw.cwd),
-    readConversation(configDir, raw.sessionId, raw.cwd),
-    readSubagents(configDir, raw.sessionId, raw.cwd),
-    getRecentMessages(configDir, raw.sessionId, raw.cwd),
+    cwdExists ? getGitInfo(raw.cwd).catch(() => undefined) : Promise.resolve(undefined),
+    readConversation(configDir, raw.sessionId, raw.cwd).catch((): ConversationState => ({
+      lastUserMessage: "",
+      lastAssistantText: "",
+      lastMessageRole: "user" as const,
+      needsInput: false,
+      messageCount: 0,
+    })),
+    readSubagents(configDir, raw.sessionId, raw.cwd).catch(() => []),
+    getRecentMessages(configDir, raw.sessionId, raw.cwd).catch(() => []),
   ]);
 
   const terminalTitle = getTerminalTitle(raw.pid);
@@ -180,14 +191,28 @@ function broadcast(clients: Set<WebSocket>, msg: WSMessage) {
 }
 
 async function main() {
+  // Global error handlers -- log to stderr, never crash
+  process.on("uncaughtException", (err) => {
+    console.error("[uncaughtException]", err);
+  });
+  process.on("unhandledRejection", (reason) => {
+    console.error("[unhandledRejection]", reason);
+  });
+
   const wss = new WebSocketServer({ port: PORT });
   const clients = new Set<WebSocket>();
 
-  console.log(`Mission Control agent listening on ws://localhost:${PORT}`);
-
   // Initial discovery
   configDirs = await discoverConfigDirs();
-  console.log(`Discovered ${configDirs.size} config dir(s):`, [...configDirs]);
+
+  // Startup banner
+  const pkg = { version: "0.1.0" };
+  console.error("====================================");
+  console.error(`  Mission Control Agent v${pkg.version}`);
+  console.error(`  ws://localhost:${PORT}`);
+  console.error(`  Sessions dirs: ${configDirs.size} discovered`);
+  console.error("====================================");
+  console.error(`Config dirs:`, [...configDirs]);
 
   // Set up file watcher
   let refreshQueued = false;
@@ -218,7 +243,7 @@ async function main() {
           [...configDirs].some((d) => !newDirs.has(d))) {
         configDirs = newDirs;
         watcher.updateDirs(configDirs);
-        console.log(`Updated config dirs (${configDirs.size}):`, [...configDirs]);
+        console.error(`Updated config dirs (${configDirs.size}):`, [...configDirs]);
         refresh();
       }
     } catch (err) {
@@ -232,7 +257,7 @@ async function main() {
   // Handle WebSocket connections
   wss.on("connection", async (ws: WebSocket) => {
     clients.add(ws);
-    console.log(`Client connected (${clients.size} total)`);
+    console.error(`Client connected (${clients.size} total)`);
 
     // Send full session list to new client
     try {
@@ -249,7 +274,7 @@ async function main() {
         const msg = JSON.parse(data.toString()) as WSMessage;
         if (msg.type === "respond") {
           const { sessionId, configDir, message } = msg;
-          console.log(`Responding to session ${sessionId}: "${message.slice(0, 50)}..."`);
+          console.error(`Responding to session ${sessionId}: "${message.slice(0, 50)}..."`);
           const result = await respondToSession(sessionId, configDir, message);
           if (!result.success) {
             console.error(`Failed to respond: ${result.error}`);
@@ -264,8 +289,17 @@ async function main() {
 
     ws.on("close", () => {
       clients.delete(ws);
-      console.log(`Client disconnected (${clients.size} total)`);
+      console.error(`Client disconnected (${clients.size} total)`);
     });
+
+    ws.on("error", (err) => {
+      console.error("WebSocket client error:", err);
+      clients.delete(ws);
+    });
+  });
+
+  wss.on("error", (err) => {
+    console.error("WebSocket server error:", err);
   });
 
   // Initial refresh
@@ -273,7 +307,7 @@ async function main() {
 
   // Graceful shutdown
   process.on("SIGINT", () => {
-    console.log("\nShutting down...");
+    console.error("\nShutting down...");
     watcher.close();
     wss.close();
     process.exit(0);

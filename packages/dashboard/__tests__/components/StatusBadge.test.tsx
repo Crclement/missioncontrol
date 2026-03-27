@@ -3,68 +3,71 @@ import { render, screen } from "@testing-library/react";
 import { StatusBadge } from "../../src/components/StatusBadge";
 
 describe("StatusBadge", () => {
-  it("shows 'active' for coding work type", () => {
+  it("shows 'Active' for coding work type", () => {
     render(<StatusBadge workType="coding" needsInput={false} />);
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
   });
 
-  it("shows 'exploring' for exploring work type", () => {
+  it("shows 'Exploring' for exploring work type", () => {
     render(<StatusBadge workType="exploring" needsInput={false} />);
-    expect(screen.getByText("exploring")).toBeInTheDocument();
+    expect(screen.getByText("Exploring")).toBeInTheDocument();
   });
 
-  it("shows 'planning' for planning work type", () => {
+  it("shows 'Planning' for planning work type", () => {
     render(<StatusBadge workType="planning" needsInput={false} />);
-    expect(screen.getByText("planning")).toBeInTheDocument();
+    expect(screen.getByText("Planning")).toBeInTheDocument();
   });
 
-  it("shows 'debugging' for debugging work type", () => {
+  it("shows 'Debugging' for debugging work type", () => {
     render(<StatusBadge workType="debugging" needsInput={false} />);
-    expect(screen.getByText("debugging")).toBeInTheDocument();
+    expect(screen.getByText("Debugging")).toBeInTheDocument();
   });
 
-  it("shows 'idle' for idle work type", () => {
+  it("shows 'Idle' for idle work type", () => {
     render(<StatusBadge workType="idle" needsInput={false} />);
-    expect(screen.getByText("idle")).toBeInTheDocument();
+    expect(screen.getByText("Idle")).toBeInTheDocument();
   });
 
-  it("shows 'running' for running work type", () => {
+  it("shows 'Running' for running work type", () => {
     render(<StatusBadge workType="running" needsInput={false} />);
-    expect(screen.getByText("running")).toBeInTheDocument();
+    expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
-  it("shows 'reviewing' for reviewing work type", () => {
+  it("shows 'Reviewing' for reviewing work type", () => {
     render(<StatusBadge workType="reviewing" needsInput={false} />);
-    expect(screen.getByText("reviewing")).toBeInTheDocument();
+    expect(screen.getByText("Reviewing")).toBeInTheDocument();
   });
 
-  it("shows 'needs input' when needsInput is true regardless of workType", () => {
+  it("shows 'Needs Input' when needsInput is true regardless of workType", () => {
     render(<StatusBadge workType="coding" needsInput={true} />);
-    expect(screen.getByText("needs input")).toBeInTheDocument();
-    expect(screen.queryByText("active")).not.toBeInTheDocument();
+    expect(screen.getByText("Needs Input")).toBeInTheDocument();
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
   });
 
-  it("applies correct color for coding (sage green)", () => {
+  it("applies black background and white text for needs-input", () => {
+    render(<StatusBadge workType="coding" needsInput={true} />);
+    const label = screen.getByText("Needs Input");
+    expect(label.style.backgroundColor).toBe("rgb(0, 0, 0)");
+    expect(label.style.color).toBe("rgb(255, 255, 255)");
+  });
+
+  it("applies transparent background for non-needs-input", () => {
     render(<StatusBadge workType="coding" needsInput={false} />);
-    const label = screen.getByText("active");
-    expect(label.style.color).toBe("rgb(124, 154, 114)");
+    const label = screen.getByText("Active");
+    expect(label.style.backgroundColor).toBe("transparent");
   });
 
-  it("applies correct color for needs-input (ochre)", () => {
-    render(<StatusBadge workType="coding" needsInput={true} />);
-    const label = screen.getByText("needs input");
-    expect(label.style.color).toBe("rgb(196, 149, 106)");
+  it("applies isActive styling when isActive is true", () => {
+    render(<StatusBadge workType="coding" needsInput={false} isActive />);
+    const label = screen.getByText("Active");
+    expect(label.style.color).toBe("rgb(170, 170, 170)");
+    expect(label.style.border).toContain("rgb(102, 102, 102)");
   });
 
-  it("applies correct color for debugging (red)", () => {
-    render(<StatusBadge workType="debugging" needsInput={false} />);
-    const label = screen.getByText("debugging");
-    expect(label.style.color).toBe("rgb(184, 92, 92)");
-  });
-
-  it("renders a colored dot indicator", () => {
-    const { container } = render(<StatusBadge workType="idle" needsInput={false} />);
-    const dot = container.querySelector("span > span:first-child");
-    expect(dot?.getAttribute("style")).toContain("rgb(107, 107, 107)");
+  it("applies default styling when isActive is false", () => {
+    render(<StatusBadge workType="idle" needsInput={false} />);
+    const label = screen.getByText("Idle");
+    expect(label.style.color).toBe("rgb(102, 102, 102)");
+    expect(label.style.border).toContain("rgb(0, 0, 0)");
   });
 });

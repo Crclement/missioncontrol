@@ -3,55 +3,54 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { ResponseInput } from "../../src/components/ResponseInput";
 
 describe("ResponseInput", () => {
-  it("renders voice mode by default with wispr label", () => {
+  it("renders type mode by default (no voiceMode prop)", () => {
     render(<ResponseInput onSend={vi.fn()} />);
-    expect(screen.getByText("wispr")).toBeInTheDocument();
-    expect(screen.getByText("type")).toBeInTheDocument();
-  });
-
-  it("shows voice placeholder by default", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    expect(screen.getByPlaceholderText("speak with wispr flow...")).toBeInTheDocument();
-  });
-
-  it("switches to type mode and updates placeholder", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    fireEvent.click(screen.getByText("type"));
+    // Default: typing=true (!voiceMode where voiceMode is undefined/false)
     expect(screen.getByPlaceholderText("type a response...")).toBeInTheDocument();
   });
 
-  it("renders a send button", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    expect(screen.getByText("send")).toBeInTheDocument();
+  it("renders voice mode when voiceMode is true", () => {
+    render(<ResponseInput onSend={vi.fn()} voiceMode={true} />);
+    expect(screen.getByText(/Press spacebar and speak/)).toBeInTheDocument();
+  });
+
+  it("shows type input with placeholder in type mode", () => {
+    render(<ResponseInput onSend={vi.fn()} voiceMode={false} />);
+    expect(screen.getByPlaceholderText("type a response...")).toBeInTheDocument();
+  });
+
+  it("renders a send button in type mode", () => {
+    render(<ResponseInput onSend={vi.fn()} voiceMode={false} />);
+    expect(screen.getByText("Send")).toBeInTheDocument();
   });
 
   it("disables send button when input is empty", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    const button = screen.getByText("send");
+    render(<ResponseInput onSend={vi.fn()} voiceMode={false} />);
+    const button = screen.getByText("Send");
     expect(button).toBeDisabled();
   });
 
   it("enables send button when input has text", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...");
+    render(<ResponseInput onSend={vi.fn()} voiceMode={false} />);
+    const input = screen.getByPlaceholderText("type a response...");
     fireEvent.change(input, { target: { value: "hello" } });
-    const button = screen.getByText("send");
+    const button = screen.getByText("Send");
     expect(button).not.toBeDisabled();
   });
 
   it("calls onSend with trimmed message on button click", () => {
     const onSend = vi.fn();
-    render(<ResponseInput onSend={onSend} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...");
+    render(<ResponseInput onSend={onSend} voiceMode={false} />);
+    const input = screen.getByPlaceholderText("type a response...");
     fireEvent.change(input, { target: { value: "  hello world  " } });
-    fireEvent.click(screen.getByText("send"));
+    fireEvent.click(screen.getByText("Send"));
     expect(onSend).toHaveBeenCalledWith("hello world");
   });
 
   it("calls onSend on Enter key press", () => {
     const onSend = vi.fn();
-    render(<ResponseInput onSend={onSend} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...");
+    render(<ResponseInput onSend={onSend} voiceMode={false} />);
+    const input = screen.getByPlaceholderText("type a response...");
     fireEvent.change(input, { target: { value: "fix the bug" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onSend).toHaveBeenCalledWith("fix the bug");
@@ -59,55 +58,55 @@ describe("ResponseInput", () => {
 
   it("does not call onSend when input is empty or whitespace", () => {
     const onSend = vi.fn();
-    render(<ResponseInput onSend={onSend} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...");
+    render(<ResponseInput onSend={onSend} voiceMode={false} />);
+    const input = screen.getByPlaceholderText("type a response...");
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it("clears input after successful send", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...") as HTMLTextAreaElement;
+  it("calls onSend and switches to voice mode after send", () => {
+    const onSend = vi.fn();
+    render(<ResponseInput onSend={onSend} voiceMode={false} />);
+    const input = screen.getByPlaceholderText("type a response...");
     fireEvent.change(input, { target: { value: "hello" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(input.value).toBe("");
-  });
-
-  it("shows 'sent' state label after successful send", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...");
-    fireEvent.change(input, { target: { value: "hello" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    expect(screen.getByText("sent")).toBeInTheDocument();
+    expect(onSend).toHaveBeenCalledWith("hello");
+    // After send, component switches to voice mode
+    expect(screen.getByText(/Press spacebar and speak/)).toBeInTheDocument();
   });
 
   it("shows 'err' state label when onSend throws", () => {
     const onSend = vi.fn(() => {
       throw new Error("network error");
     });
-    render(<ResponseInput onSend={onSend} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...");
+    render(<ResponseInput onSend={onSend} voiceMode={false} />);
+    const input = screen.getByPlaceholderText("type a response...");
     fireEvent.change(input, { target: { value: "hello" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(screen.getByText("err")).toBeInTheDocument();
   });
 
-  it("renders the voice prompt character in voice mode", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    expect(screen.getByText("◆")).toBeInTheDocument();
-  });
-
-  it("switches prompt character to > in type mode", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    fireEvent.click(screen.getByText("type"));
+  it("renders the > prompt character in type mode", () => {
+    render(<ResponseInput onSend={vi.fn()} voiceMode={false} />);
     expect(screen.getByText(">")).toBeInTheDocument();
   });
 
-  it("Tab key switches between voice and type mode", () => {
-    render(<ResponseInput onSend={vi.fn()} />);
-    const input = screen.getByPlaceholderText("speak with wispr flow...");
-    fireEvent.keyDown(input, { key: "Tab" });
+  it("voice mode shows 'Press spacebar' text", () => {
+    render(<ResponseInput onSend={vi.fn()} voiceMode={true} />);
+    expect(screen.getByText(/Press spacebar and speak to respond/)).toBeInTheDocument();
+  });
+
+  it("voice mode has a hidden textarea for dictation", () => {
+    const { container } = render(<ResponseInput onSend={vi.fn()} voiceMode={true} />);
+    const hiddenTextarea = container.querySelector('textarea[style*="opacity: 0"]');
+    expect(hiddenTextarea).toBeTruthy();
+  });
+
+  it("clicking voice prompt switches to type mode", () => {
+    render(<ResponseInput onSend={vi.fn()} voiceMode={true} />);
+    const voicePrompt = screen.getByText(/Press spacebar and speak/);
+    fireEvent.click(voicePrompt);
     expect(screen.getByPlaceholderText("type a response...")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import { execSync } from "child_process"
 
 // Cache titles for 5 seconds to avoid hammering osascript
-let titleCache: Map<number, { title: string; fetchedAt: number }> = new Map()
+const titleCache: Map<number, { title: string | undefined; fetchedAt: number }> = new Map()
 const CACHE_TTL_MS = 5000
 
 export function getTerminalTitle(pid: number): string | undefined {
@@ -11,48 +11,75 @@ export function getTerminalTitle(pid: number): string | undefined {
     return cached.title
   }
 
+  let title: string | undefined
+
+  // 1. Try getting the process name via System Events (works for any app)
   try {
-    // Try Terminal.app first
     const result = execSync(
       `osascript -e 'tell application "System Events" to get name of every process whose unix id is ${pid}' 2>/dev/null`,
       { encoding: "utf-8", timeout: 2000 }
     ).trim()
 
     if (result) {
-      titleCache.set(pid, { title: result, fetchedAt: Date.now() })
-      return result
+      title = result
     }
-  } catch {}
+  } catch {
+    // osascript timeout or not available
+  }
 
-  try {
-    // Try getting all Terminal.app window names and match
-    const result = execSync(
-      `osascript -e 'tell application "Terminal" to get name of every window' 2>/dev/null`,
-      { encoding: "utf-8", timeout: 2000 }
-    ).trim()
+  // 2. Try Terminal.app window names
+  if (!title) {
+    try {
+      const result = execSync(
+        `osascript -e 'tell application "Terminal" to get name of every window' 2>/dev/null`,
+        { encoding: "utf-8", timeout: 2000 }
+      ).trim()
 
-    if (result) {
-      // Parse comma-separated list, find one containing relevant info
-      const names = result.split(", ")
-      // Store all names - we'll match by session later
-      return names[0] // For now return first
+      if (result) {
+        const names = result.split(", ")
+        title = names[0]
+      }
+    } catch {
+      // Terminal.app not running or not available
     }
-  } catch {}
+  }
 
-  // Fallback: try to read the TTY title
-  try {
-    const tty = execSync(`lsof -p ${pid} 2>/dev/null | grep /dev/ttys | head -1 | awk '{print $NF}'`, {
-      encoding: "utf-8",
-      timeout: 2000,
-    }).trim()
+  // 3. Try iTerm2 window names
+  if (!title) {
+    try {
+      const result = execSync(
+        `osascript -e 'tell application "iTerm2" to get name of every window' 2>/dev/null`,
+        { encoding: "utf-8", timeout: 2000 }
+      ).trim()
 
-    if (tty) {
-      titleCache.set(pid, { title: tty, fetchedAt: Date.now() })
-      return tty
+      if (result) {
+        const names = result.split(", ")
+        title = names[0]
+      }
+    } catch {
+      // iTerm2 not running or not available
     }
-  } catch {}
+  }
 
-  return undefined
+  // 4. Fallback: get process name via ps (works for any terminal emulator)
+  if (!title) {
+    try {
+      const result = execSync(
+        `ps -p ${pid} -o comm= 2>/dev/null`,
+        { encoding: "utf-8", timeout: 1000 }
+      ).trim()
+
+      if (result) {
+        // Extract just the binary name (strip path)
+        title = result.split("/").pop() || result
+      }
+    } catch {
+      // ps failed
+    }
+  }
+
+  titleCache.set(pid, { title, fetchedAt: Date.now() })
+  return title
 }
 
 // Get all terminal window titles at once (more efficient than per-PID)

@@ -36,7 +36,7 @@ describe("readConversation", () => {
       lastUserMessage: "",
       lastAssistantText: "",
       lastMessageRole: "user",
-      needsInput: true,
+      needsInput: false,
       messageCount: 0,
     });
   });
@@ -143,8 +143,8 @@ describe("readConversation", () => {
     mockOpen.mockResolvedValue(createMockFileHandle(content) as any);
 
     const result = await readConversation("/config", "s1", "/project");
-    // contextPercentUsed = min(100, ((100000 + 50000) / 200000) * 100) = 75%
-    expect(result.tokenUsage!.contextPercentUsed).toBe(75);
+    // contextPercentUsed = min(100, ((100000 + 50000) / 1_000_000) * 100) = 15%
+    expect(result.tokenUsage!.contextPercentUsed).toBe(15);
   });
 
   it("caps context percentage at 100", async () => {
@@ -154,10 +154,10 @@ describe("readConversation", () => {
         content: "response",
         stop_reason: "end_turn",
         usage: {
-          input_tokens: 180_000,
+          input_tokens: 900_000,
           output_tokens: 5000,
           cache_creation_input_tokens: 0,
-          cache_read_input_tokens: 50_000,
+          cache_read_input_tokens: 200_000,
         },
       }),
     ].join("\n");
@@ -208,7 +208,7 @@ describe("readConversation", () => {
 
     const result = await readConversation("/config", "s1", "/project");
     expect(result.messageCount).toBe(0);
-    expect(result.needsInput).toBe(true);
+    expect(result.needsInput).toBe(false);
   });
 
   it("skips malformed JSON lines", async () => {
@@ -258,30 +258,12 @@ describe("readConversation", () => {
   it("converts cwd to project path correctly", async () => {
     mockOpen.mockRejectedValue(new Error("ENOENT"));
 
-    // The function should call open with the path derived from cwd
+    // The function prepends "-" and replaces leading / with empty, then remaining / with -
     await readConversation("/config", "session-1", "/home/user/my project");
     expect(mockOpen).toHaveBeenCalledWith(
-      "/config/projects/home-user-my-project/session-1.jsonl",
+      "/config/projects/-home-user-my-project/session-1.jsonl",
       "r"
     );
-  });
-
-  it("handles role-based messages (alternative format)", async () => {
-    const content = [
-      JSON.stringify({ role: "user", content: "Help me" }),
-      JSON.stringify({
-        role: "assistant",
-        content: "Sure!",
-        stopReason: "end_turn",
-      }),
-    ].join("\n");
-
-    mockOpen.mockResolvedValue(createMockFileHandle(content) as any);
-
-    const result = await readConversation("/config", "s1", "/project");
-    expect(result.lastUserMessage).toBe("Help me");
-    expect(result.lastAssistantText).toBe("Sure!");
-    expect(result.needsInput).toBe(true);
   });
 
   it("returns no tokenUsage when there are zero tokens", async () => {

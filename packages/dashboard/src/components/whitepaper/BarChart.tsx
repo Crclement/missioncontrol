@@ -20,13 +20,12 @@ export function BarChart({ items, maxValue, title }: BarChartProps) {
     <div
       className="p-4"
       style={{
-        backgroundColor: "#161616",
-        border: "1px solid #2a2a2a",
-        borderRadius: "2px",
+        backgroundColor: "#ffffff",
+        border: "1px solid #000000",
       }}
     >
       {title && (
-        <p className="text-xs text-muted uppercase tracking-widest mb-4 font-mono">
+        <p className="text-xs text-[#666666] uppercase tracking-widest mb-4 font-mono">
           {title}
         </p>
       )}
@@ -36,10 +35,10 @@ export function BarChart({ items, maxValue, title }: BarChartProps) {
           return (
             <div key={i}>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-mono text-[#e0e0e0]">
+                <span className="text-xs font-mono text-[#000000]">
                   {item.label}
                 </span>
-                <span className="text-xs font-mono text-muted">
+                <span className="text-xs font-mono text-[#666666]">
                   {item.value.toLocaleString()}
                   {item.suffix ?? ""}
                 </span>
@@ -47,17 +46,15 @@ export function BarChart({ items, maxValue, title }: BarChartProps) {
               <div
                 className="w-full h-4"
                 style={{
-                  backgroundColor: "#0c0c0c",
-                  border: "1px solid #2a2a2a",
-                  borderRadius: "1px",
+                  backgroundColor: "#f5f5f5",
+                  border: "1px solid #ccc",
                 }}
               >
                 <div
                   className="h-full"
                   style={{
                     width: `${pct}%`,
-                    backgroundColor: item.color ?? "#6b8cae",
-                    borderRadius: "0px",
+                    backgroundColor: item.color ?? "#000000",
                     transition: "width 0.6s ease",
                   }}
                 />

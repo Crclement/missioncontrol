@@ -1,6 +1,20 @@
-import { open } from "fs/promises";
+import { open, type FileHandle } from "fs/promises";
 import { join } from "path";
 import type { ConversationState, TokenUsage } from "@missioncontrol/shared";
+
+async function openWithRetry(filePath: string): Promise<FileHandle> {
+  try {
+    return await open(filePath, "r");
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "EBUSY" || code === "EAGAIN") {
+      // File is locked/busy, retry once after 100ms
+      await new Promise((r) => setTimeout(r, 100));
+      return await open(filePath, "r");
+    }
+    throw err;
+  }
+}
 
 const PRICING = {
   inputPerToken: 3 / 1_000_000,
@@ -12,9 +26,13 @@ const PRICING = {
 const CONTEXT_LIMIT = 1_000_000;
 
 function cwdToProjectPath(cwd: string): string {
+  // Normalize: collapse double slashes, strip trailing slashes, then convert
+  const normalized = cwd
+    .replace(/\/+/g, "/")   // collapse multiple slashes
+    .replace(/\/$/g, "");   // strip trailing slash
   return (
     "-" +
-    cwd
+    normalized
       .replace(/^\//g, "")
       .replace(/\//g, "-")
       .replace(/ /g, "-")
@@ -59,7 +77,7 @@ export async function readConversation(
 
   let fh;
   try {
-    fh = await open(filePath, "r");
+    fh = await openWithRetry(filePath);
   } catch {
     return defaultState();
   }
@@ -67,6 +85,10 @@ export async function readConversation(
   try {
     const stat = await fh.stat();
     const fileSize = stat.size;
+
+    if (fileSize === 0) {
+      return defaultState();
+    }
 
     const readSize = Math.min(50 * 1024, fileSize);
     const position = fileSize - readSize;
@@ -212,7 +234,7 @@ export async function getRecentMessages(
 
   let fh;
   try {
-    fh = await open(filePath, "r");
+    fh = await openWithRetry(filePath);
   } catch {
     return [];
   }
@@ -220,6 +242,10 @@ export async function getRecentMessages(
   try {
     const stat = await fh.stat();
     const fileSize = stat.size;
+
+    if (fileSize === 0) {
+      return [];
+    }
 
     // Read a larger tail to get enough messages
     const readSize = Math.min(100 * 1024, fileSize);

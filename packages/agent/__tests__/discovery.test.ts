@@ -9,6 +9,10 @@ vi.mock("fs/promises", () => ({
   readFile: vi.fn(),
 }));
 
+vi.mock("fs", () => ({
+  existsSync: vi.fn(() => true), // All dirs "exist" in tests
+}));
+
 vi.mock("os", () => ({
   homedir: vi.fn(() => "/home/testuser"),
 }));

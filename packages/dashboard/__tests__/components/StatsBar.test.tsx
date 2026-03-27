@@ -31,31 +31,31 @@ describe("StatsBar", () => {
     expect(screen.getByText("connected")).toBeInTheDocument();
   });
 
-  it("shows green dot for connected state", () => {
+  it("shows black dot for connected state", () => {
     const { container } = render(
       <StatsBar sessions={[]} connectionState="connected" />
     );
     const dots = container.querySelectorAll("span.inline-block");
     const connectionDot = dots[0];
-    expect(connectionDot?.getAttribute("style")).toContain("rgb(124, 154, 114)");
+    expect(connectionDot?.getAttribute("style")).toContain("rgb(0, 0, 0)");
   });
 
-  it("shows ochre dot for connecting state", () => {
+  it("shows gray dot for non-connected state", () => {
     const { container } = render(
       <StatsBar sessions={[]} connectionState="connecting" />
     );
     const dots = container.querySelectorAll("span.inline-block");
     const connectionDot = dots[0];
-    expect(connectionDot?.getAttribute("style")).toContain("rgb(196, 149, 106)");
+    expect(connectionDot?.getAttribute("style")).toContain("rgb(136, 136, 136)");
   });
 
-  it("shows red dot for disconnected state", () => {
+  it("shows gray dot for disconnected state", () => {
     const { container } = render(
       <StatsBar sessions={[]} connectionState="disconnected" />
     );
     const dots = container.querySelectorAll("span.inline-block");
     const connectionDot = dots[0];
-    expect(connectionDot?.getAttribute("style")).toContain("rgb(184, 92, 92)");
+    expect(connectionDot?.getAttribute("style")).toContain("rgb(136, 136, 136)");
   });
 
   it("shows active session count", () => {
@@ -65,7 +65,6 @@ describe("StatsBar", () => {
       makeSession({ pid: 3, alive: false }),
     ];
     render(<StatsBar sessions={sessions} connectionState="connected" />);
-    // The "2" is rendered inside a highlighted span
     const sessionCountEl = screen.getByText("2");
     expect(sessionCountEl).toBeInTheDocument();
     expect(screen.getByText("sessions")).toBeInTheDocument();
@@ -73,7 +72,6 @@ describe("StatsBar", () => {
 
   it("shows zero sessions when none are active", () => {
     render(<StatsBar sessions={[]} connectionState="connected" />);
-    // "0" appears in both sessions and tokens. Check the sessions one specifically.
     const spans = screen.getAllByText("0");
     expect(spans.length).toBeGreaterThanOrEqual(1);
   });
@@ -151,7 +149,7 @@ describe("StatsBar", () => {
     ];
     render(<StatsBar sessions={sessions} connectionState="connected" />);
     expect(screen.getByText("$1.25")).toBeInTheDocument();
-    expect(screen.getByText("est. cost")).toBeInTheDocument();
+    expect(screen.getByText("est.")).toBeInTheDocument();
   });
 
   it("shows $0.00 cost when no token usage", () => {
@@ -161,8 +159,6 @@ describe("StatsBar", () => {
 
   it("shows 0 tokens when sessions have no token usage", () => {
     render(<StatsBar sessions={[makeSession()]} connectionState="connected" />);
-    // Both session count and token count render "0" and "1" respectively
-    // Session count is 1 (alive), token count is 0
     const zeroEls = screen.getAllByText("0");
     expect(zeroEls.length).toBeGreaterThanOrEqual(1);
   });

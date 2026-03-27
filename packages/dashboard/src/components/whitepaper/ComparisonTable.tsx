@@ -27,10 +27,10 @@ export function ComparisonTable({
         <thead>
           <tr>
             <th
-              className="text-left p-3 text-muted uppercase tracking-widest"
+              className="text-left p-3 text-[#666666] uppercase tracking-widest"
               style={{
-                backgroundColor: "#161616",
-                border: "1px solid #2a2a2a",
+                backgroundColor: "#f5f5f5",
+                border: "1px solid #000000",
               }}
             >
               Feature
@@ -40,9 +40,9 @@ export function ComparisonTable({
                 key={i}
                 className="text-left p-3 uppercase tracking-widest"
                 style={{
-                  backgroundColor: i === highlightCol ? "#1a1f1a" : "#161616",
-                  border: "1px solid #2a2a2a",
-                  color: i === highlightCol ? "#7c9a72" : "#6b6b6b",
+                  backgroundColor: i === highlightCol ? "#000000" : "#f5f5f5",
+                  border: "1px solid #000000",
+                  color: i === highlightCol ? "#ffffff" : "#666666",
                 }}
               >
                 {h}
@@ -54,10 +54,10 @@ export function ComparisonTable({
           {rows.map((row, ri) => (
             <tr key={ri}>
               <td
-                className="p-3 text-[#e0e0e0]"
+                className="p-3 text-[#000000]"
                 style={{
-                  backgroundColor: "#0c0c0c",
-                  border: "1px solid #2a2a2a",
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #000000",
                 }}
               >
                 {row.feature}
@@ -68,9 +68,10 @@ export function ComparisonTable({
                   className="p-3"
                   style={{
                     backgroundColor:
-                      vi === highlightCol ? "#1a1f1a" : "#0c0c0c",
-                    border: "1px solid #2a2a2a",
-                    color: v === "Yes" || v === "Full" ? "#7c9a72" : v === "No" || v === "None" ? "#b85c5c" : "#e0e0e0",
+                      vi === highlightCol ? "#f5f5f5" : "#ffffff",
+                    border: "1px solid #000000",
+                    color: v === "Yes" || v === "Full" ? "#000000" : v === "No" || v === "None" ? "#888888" : "#000000",
+                    fontWeight: (v === "Yes" || v === "Full") && vi === highlightCol ? 700 : 400,
                   }}
                 >
                   {v}
