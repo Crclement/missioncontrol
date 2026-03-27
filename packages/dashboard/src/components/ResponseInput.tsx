@@ -122,13 +122,13 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
   return (
     <div className="mt-4">
       {mode === "voice" && !dictationVisible ? (
-        /* Voice mode: large clear button */
+        /* Voice mode: large clear prompt */
         <div>
           <button
             onClick={switchToType}
             className="w-full py-3 text-sm font-mono font-bold border border-black flex items-center justify-center gap-2 hover:bg-black hover:text-white transition-colors"
           >
-            <span>&#9670;</span> Press Space to Talk
+            <span>&#9670;</span> Press spacebar and speak to respond
           </button>
           {/* Hidden textarea for Wispr Flow activation */}
           <textarea
@@ -141,7 +141,7 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
             tabIndex={-1}
           />
           <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-[#999] font-mono">
+            <span className="text-[10px] text-[#666] font-mono">
               Tab to type
             </span>
           </div>
@@ -151,7 +151,7 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-sm font-mono font-bold animate-pulse">&#9679;</span>
-            <span className="text-xs font-mono text-[#999]">Listening...</span>
+            <span className="text-xs font-mono text-[#666]">Listening...</span>
           </div>
           <div className="flex items-end gap-2">
             <span className="text-black text-sm font-mono font-bold select-none pb-px">&#9670;</span>
@@ -161,17 +161,17 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#ccc] border-b border-black focus:border-black transition-colors resize-none leading-relaxed"
+              className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#888] border-b border-black focus:border-black transition-colors resize-none leading-relaxed"
               style={{ outline: "none", minHeight: "1.5em", maxHeight: "120px" }}
               autoFocus
             />
             {stateLabel ? (
-              <span className="text-xs font-mono text-[#999] pb-px">{stateLabel}</span>
+              <span className="text-xs font-mono text-[#666] pb-px">{stateLabel}</span>
             ) : (
               <button
                 onClick={handleSend}
                 disabled={!value.trim()}
-                className="text-xs font-mono font-bold text-black hover:text-black disabled:text-[#ccc] transition-colors pb-px"
+                className="text-xs font-mono font-bold text-black hover:text-black disabled:text-[#888] transition-colors pb-px"
               >
                 Send
               </button>
@@ -190,24 +190,24 @@ export function ResponseInput({ onSend, autoFocus, voiceMode: initialVoiceMode }
               onKeyDown={handleKeyDown}
               placeholder="type a response..."
               rows={1}
-              className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#ccc] border-b border-black focus:border-black transition-colors resize-none leading-relaxed"
+              className="flex-1 bg-transparent text-sm font-mono text-black placeholder:text-[#888] border-b border-black focus:border-black transition-colors resize-none leading-relaxed"
               style={{ outline: "none", minHeight: "1.5em", maxHeight: "120px" }}
               autoFocus
             />
             {stateLabel ? (
-              <span className="text-xs font-mono text-[#999] pb-px">{stateLabel}</span>
+              <span className="text-xs font-mono text-[#666] pb-px">{stateLabel}</span>
             ) : (
               <button
                 onClick={handleSend}
                 disabled={!value.trim()}
-                className="text-xs font-mono font-bold text-black hover:text-black disabled:text-[#ccc] transition-colors pb-px"
+                className="text-xs font-mono font-bold text-black hover:text-black disabled:text-[#888] transition-colors pb-px"
               >
                 Send
               </button>
             )}
           </div>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-[10px] text-[#999] font-mono">
+            <span className="text-[10px] text-[#666] font-mono">
               Tab for voice
             </span>
           </div>

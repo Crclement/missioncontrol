@@ -66,6 +66,7 @@ export interface EnrichedSession {
   subagents: SubAgent[]
   workType: WorkType
   creature: string
+  summary?: string
 }
 
 export type WSMessage =

@@ -15,42 +15,31 @@ interface SessionCardProps {
   onSendResponse: (sessionId: string, configDir: string, message: string) => void
 }
 
-function getWorkSummary(session: EnrichedSession): string {
-  const { needsInput } = session.conversation
-  const { workType } = session
-  const lastToolUse = session.conversation.lastToolUse
+function humanizeTitle(raw: string): string {
+  return raw
+    .replace(/^claude-code-/, "")
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+}
 
-  if (needsInput) {
-    const text = session.conversation.lastAssistantText
-    if (text) {
-      return text.length > 80 ? text.slice(0, 80) + "..." : text
+function getStatusLabel(session: EnrichedSession): string {
+  if (session.conversation.needsInput) return "Awaiting input"
+  if (session.workType === "idle") return "Idle"
+  const tool = session.conversation.lastToolUse
+  if (tool) {
+    const m: Record<string, string> = {
+      Edit: "Editing",
+      Write: "Writing",
+      Read: "Reading",
+      Bash: "Running",
+      Grep: "Searching",
+      Glob: "Finding files",
+      Agent: "Subagent",
     }
-    return "Awaiting your response"
+    return m[tool] ?? tool
   }
-
-  if (lastToolUse) {
-    const toolMap: Record<string, string> = {
-      Edit: "Editing files...",
-      Write: "Writing files...",
-      Read: "Reading files...",
-      Bash: "Running command...",
-      Grep: "Searching code...",
-      Glob: "Finding files...",
-      ToolSearch: "Searching tools...",
-    }
-    return toolMap[lastToolUse] ?? `Using ${lastToolUse}...`
-  }
-
-  const typeMap: Record<string, string> = {
-    coding: "Writing code...",
-    exploring: "Exploring codebase...",
-    planning: "Planning approach...",
-    debugging: "Debugging issue...",
-    running: "Running tasks...",
-    reviewing: "Reviewing code...",
-    idle: "Idle",
-  }
-  return typeMap[workType] ?? "Working..."
+  return "Working"
 }
 
 export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
@@ -70,118 +59,82 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
       prevNeedsInputRef.current = needsInput
     }, [needsInput, session.name, session.sessionId, session.pid])
 
-    useEffect(() => {
-      if (isFocused && ref && typeof ref !== "function" && ref.current) {
-        ref.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
-      }
-    }, [isFocused, ref])
-
-    const isActive = session.workType !== "idle" && !needsInput
     const repoName = session.git?.repo ?? session.cwd.split("/").pop() ?? "unknown"
     const branchName = session.git?.branch ?? ""
-    const sessionName = session.name ?? session.sessionId.slice(0, 8)
-    const orgLabel = session.git
-      ? session.git.isPersonal
-        ? "personal"
-        : session.git.org ?? "org"
-      : null
+    const sessionName = humanizeTitle(session.name ?? "") || session.sessionId.slice(0, 8)
 
-    const summary = getWorkSummary(session)
+    // AI summary or fallback
+    const summary = session.summary || getStatusLabel(session)
 
     return (
       <div
         ref={ref}
         tabIndex={-1}
-        className="p-6 flex flex-col overflow-hidden transition-colors relative"
+        className="p-5 flex flex-col overflow-hidden relative"
         style={{
-          backgroundColor: isActive ? "#000000" : needsInput ? "#f8f8f5" : "#ffffff",
-          color: isActive ? "#ffffff" : "#000000",
+          backgroundColor: "#ffffff",
+          color: "#000000",
           border: "1px solid #000000",
-          outline: isFocused ? "2px solid #000000" : "none",
-          outlineOffset: "-4px",
+          outline: isFocused ? "3px solid #000000" : "none",
+          outlineOffset: "-1px",
         }}
       >
-        {/* Number key - large, top-left corner */}
-        <div
-          className="absolute top-4 left-4 text-2xl font-mono font-bold leading-none"
-          style={{ color: isActive ? "#333" : "#ddd" }}
-        >
-          {index + 1}
-        </div>
-
-        {/* Pixel creature - small, top-right */}
-        <div className="absolute top-4 right-4">
-          <PixelCreature workType={session.workType} size={3} inverted={isActive} />
-        </div>
-
-        {/* Title - full width, large and bold */}
-        <div className="pl-8 pr-14 mb-1">
-          <h2 className="text-lg font-mono font-bold truncate leading-tight">
-            {sessionName}
-          </h2>
-        </div>
-
-        {/* One-line summary */}
-        <div
-          className="pl-8 pr-14 mb-2 text-sm font-mono truncate"
-          style={{ color: isActive ? "#aaa" : "#666" }}
-        >
-          {needsInput && (
-            <span
-              className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
-              style={{ backgroundColor: isActive ? "#aaa" : "#999" }}
-            />
-          )}
-          {summary}
-        </div>
-
-        {/* Repo . branch . org */}
-        <div
-          className="pl-8 flex items-center gap-2 text-xs font-mono mb-4"
-          style={{ color: isActive ? "#666" : "#999" }}
-        >
-          <span className="truncate">
-            {repoName}
-            {branchName && <span> · {branchName}</span>}
+        {/* Row 1: Number + Title + Creature */}
+        <div className="flex items-start gap-3 mb-3">
+          <span className="text-xl font-mono font-bold leading-none shrink-0 mt-0.5" style={{ color: "#bbb" }}>
+            {index + 1}
           </span>
-          {orgLabel && (
-            <span className="shrink-0">· {orgLabel}</span>
-          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-mono font-bold truncate leading-tight">
+              {sessionName}
+            </h2>
+            <div className="text-xs font-mono mt-1" style={{ color: "#666" }}>
+              {repoName}
+              {branchName && <span> · {branchName}</span>}
+            </div>
+          </div>
+          <div className="shrink-0">
+            <PixelCreature workType={session.workType} size={3} />
+          </div>
+        </div>
+
+        {/* Row 2: Status + Summary */}
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="inline-block w-1.5 h-1.5 shrink-0"
+            style={{ backgroundColor: needsInput ? "#000" : "#bbb" }}
+          />
+          <span className="text-sm font-mono truncate" style={{ color: "#555" }}>
+            {summary}
+          </span>
         </div>
 
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Wispr hint when focused */}
-        {isFocused && !inputOpen && needsInput && (
-          <div
-            className="text-xs font-mono mt-3 font-bold"
-            style={{ color: isActive ? "#666" : "#999" }}
-          >
-            &#9670; Space to dictate · Enter to type
-          </div>
-        )}
-
         {/* Context meter */}
         {session.conversation.tokenUsage && (
-          <div className="mt-3">
+          <div className="mt-2">
             <ContextMeter
               percentUsed={session.conversation.tokenUsage.contextPercentUsed}
               totalTokens={session.conversation.tokenUsage.totalTokens}
               contextLimit={1_000_000}
-              isActive={isActive}
             />
           </div>
         )}
 
-        {/* Response input */}
-        {needsInput && (
+        {/* Input area for needs-input sessions */}
+        {needsInput && isFocused && inputOpen ? (
           <ResponseInput
             onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
-            autoFocus={isFocused && inputOpen}
+            autoFocus
             voiceMode={voiceMode}
           />
-        )}
+        ) : needsInput && isFocused ? (
+          <div className="mt-3 text-sm font-mono font-bold text-black">
+            ◆ Press spacebar and speak · Enter to type
+          </div>
+        ) : null}
       </div>
     )
   },

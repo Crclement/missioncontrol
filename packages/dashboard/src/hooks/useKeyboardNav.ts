@@ -6,10 +6,11 @@ export type ViewMode = "grid" | "orbital"
 
 interface UseKeyboardNavOptions {
   sessionCount: number
+  cols: number
   onReconnect: () => void
 }
 
-export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOptions) {
+export function useKeyboardNav({ sessionCount, cols, onReconnect }: UseKeyboardNavOptions) {
   const [focusedIndex, setFocusedIndex] = useState<number>(-1)
   const [showHelp, setShowHelp] = useState(false)
   const [inputOpen, setInputOpen] = useState(false)
@@ -35,7 +36,6 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
-      // Don't handle other keys when typing in an input
       if (isInput) return
 
       if (e.key === "?") {
@@ -56,7 +56,6 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
-      // Number keys 1-9 to focus session
       const num = parseInt(e.key, 10)
       if (num >= 1 && num <= 9 && num <= sessionCount) {
         e.preventDefault()
@@ -66,11 +65,12 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
-      // Arrow keys + j/k for navigation
-      if (e.key === "j" || e.key === "ArrowDown" || e.key === "ArrowRight") {
+      // Left/Right: move within the row (sequential)
+      if (e.key === "ArrowRight" || e.key === "l") {
         e.preventDefault()
         setFocusedIndex((prev) => {
-          if (sessionCount === 0) return -1
+          if (sessionCount === 0) return 0
+          if (prev < 0) return 0
           return prev < sessionCount - 1 ? prev + 1 : 0
         })
         setInputOpen(false)
@@ -78,10 +78,11 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
-      if (e.key === "k" || e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      if (e.key === "ArrowLeft" || e.key === "h") {
         e.preventDefault()
         setFocusedIndex((prev) => {
-          if (sessionCount === 0) return -1
+          if (sessionCount === 0) return 0
+          if (prev < 0) return 0
           return prev > 0 ? prev - 1 : sessionCount - 1
         })
         setInputOpen(false)
@@ -89,7 +90,39 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
 
-      // Spacebar = open voice input (Wispr Flow)
+      // Down/Up: jump by cols to move between rows
+      if (e.key === "ArrowDown" || e.key === "j") {
+        e.preventDefault()
+        setFocusedIndex((prev) => {
+          if (sessionCount === 0) return 0
+          if (prev < 0) return 0
+          const next = prev + cols
+          return next < sessionCount ? next : prev % cols < sessionCount ? prev % cols : 0
+        })
+        setInputOpen(false)
+        setVoiceMode(false)
+        return
+      }
+
+      if (e.key === "ArrowUp" || e.key === "k") {
+        e.preventDefault()
+        setFocusedIndex((prev) => {
+          if (sessionCount === 0) return 0
+          if (prev < 0) return sessionCount - 1
+          const next = prev - cols
+          if (next >= 0) return next
+          // Wrap to last row, same column
+          const col = prev % cols
+          const lastRowStart = Math.floor((sessionCount - 1) / cols) * cols
+          const target = lastRowStart + col
+          return target < sessionCount ? target : sessionCount - 1
+        })
+        setInputOpen(false)
+        setVoiceMode(false)
+        return
+      }
+
+      // Spacebar = open voice input
       if (e.key === " " && focusedIndex >= 0) {
         e.preventDefault()
         setInputOpen(true)
@@ -105,7 +138,7 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
         return
       }
     },
-    [sessionCount, focusedIndex, showHelp, inputOpen, onReconnect],
+    [sessionCount, cols, focusedIndex, showHelp, inputOpen, onReconnect],
   )
 
   useEffect(() => {
@@ -113,7 +146,6 @@ export function useKeyboardNav({ sessionCount, onReconnect }: UseKeyboardNavOpti
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleKeyDown])
 
-  // Clamp focused index when session count changes
   useEffect(() => {
     if (focusedIndex >= sessionCount) {
       setFocusedIndex(sessionCount > 0 ? sessionCount - 1 : -1)

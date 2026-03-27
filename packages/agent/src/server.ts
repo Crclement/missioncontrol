@@ -10,8 +10,9 @@ import type {
 import { discoverConfigDirs } from "./discovery.js";
 import { readSessions } from "./session-reader.js";
 import { getGitInfo } from "./git-reader.js";
-import { readConversation } from "./conversation-reader.js";
+import { readConversation, getRecentMessages } from "./conversation-reader.js";
 import { readSubagents } from "./subagent-reader.js";
+import { summarizeSession } from "./summarizer.js";
 import { respondToSession } from "./responder.js";
 import { getTerminalTitle } from "./terminal-title.js";
 import { createWatcher } from "./watcher.js";
@@ -75,10 +76,11 @@ async function enrichSession(
   raw: RawSession,
   configDir: string
 ): Promise<EnrichedSession> {
-  const [git, conversation, subagents] = await Promise.all([
+  const [git, conversation, subagents, recentMessages] = await Promise.all([
     getGitInfo(raw.cwd),
     readConversation(configDir, raw.sessionId, raw.cwd),
     readSubagents(configDir, raw.sessionId, raw.cwd),
+    getRecentMessages(configDir, raw.sessionId, raw.cwd),
   ]);
 
   const terminalTitle = getTerminalTitle(raw.pid);
@@ -100,6 +102,18 @@ async function enrichSession(
   };
 
   partial.workType = classifyWorkType(partial);
+
+  // Generate AI summary (non-blocking, uses cache)
+  try {
+    partial.summary = await summarizeSession(
+      raw.sessionId,
+      recentMessages,
+      partial.workType,
+      conversation.lastToolUse
+    );
+  } catch {
+    // Summarizer is optional - don't fail the whole enrichment
+  }
 
   return partial;
 }

@@ -12,7 +12,7 @@ const config: Config = {
         bg: "#ffffff",
         card: "#ffffff",
         border: "#000000",
-        muted: "#999999",
+        muted: "#666666",
         primary: "#000000",
         secondary: "#666666",
       },

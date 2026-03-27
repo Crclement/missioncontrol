@@ -18,6 +18,9 @@ export function Dashboard() {
     })
   }, [sessions])
 
+  const count = sortedSessions.length
+  const cols = count <= 1 ? 1 : count === 2 ? 2 : count <= 4 ? 2 : count <= 6 ? 3 : count <= 9 ? 3 : 4
+
   const {
     focusedIndex,
     showHelp,
@@ -27,7 +30,8 @@ export function Dashboard() {
     setShowHelp,
     setViewMode,
   } = useKeyboardNav({
-    sessionCount: sortedSessions.length,
+    sessionCount: count,
+    cols,
     onReconnect: reconnect,
   })
 
@@ -50,9 +54,6 @@ export function Dashboard() {
     }
   }, [focusedIndex, viewMode])
 
-  const count = sortedSessions.length
-  const cols = count <= 1 ? 1 : count === 2 ? 2 : count <= 4 ? 2 : count <= 6 ? 3 : count <= 9 ? 3 : 4
-
   return (
     <div className="fixed inset-0 overflow-hidden flex flex-col">
       <div className="p-4 md:p-12 flex flex-col h-full font-mono">
@@ -69,23 +70,23 @@ export function Dashboard() {
                 className={`text-xs font-mono transition-colors ${
                   viewMode === "grid"
                     ? "text-black font-bold"
-                    : "text-[#999] hover:text-[#666]"
+                    : "text-[#666] hover:text-[#333]"
                 }`}
               >
                 Grid
               </button>
-              <span className="text-[#ccc] text-xs">/</span>
+              <span className="text-[#888] text-xs">/</span>
               <button
                 onClick={() => setViewMode("orbital")}
                 className={`text-xs font-mono transition-colors ${
                   viewMode === "orbital"
                     ? "text-black font-bold"
-                    : "text-[#999] hover:text-[#666]"
+                    : "text-[#666] hover:text-[#333]"
                 }`}
               >
                 Orbital
               </button>
-              <span className="text-[10px] text-[#ccc] font-mono ml-1">[v]</span>
+              <span className="text-[10px] text-[#888] font-mono ml-1">[v]</span>
             </div>
           </div>
           <StatsBar sessions={sortedSessions} connectionState={connectionState} />

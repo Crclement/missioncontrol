@@ -201,3 +201,64 @@ export async function readConversation(
     await fh.close();
   }
 }
+
+export async function getRecentMessages(
+  configDir: string,
+  sessionId: string,
+  cwd: string
+): Promise<string[]> {
+  const projectPath = cwdToProjectPath(cwd);
+  const filePath = join(configDir, "projects", projectPath, `${sessionId}.jsonl`);
+
+  let fh;
+  try {
+    fh = await open(filePath, "r");
+  } catch {
+    return [];
+  }
+
+  try {
+    const stat = await fh.stat();
+    const fileSize = stat.size;
+
+    // Read a larger tail to get enough messages
+    const readSize = Math.min(100 * 1024, fileSize);
+    const position = fileSize - readSize;
+    const buffer = Buffer.alloc(readSize);
+    await fh.read(buffer, 0, readSize, position);
+
+    const text = buffer.toString("utf-8");
+    const objects = extractJsonObjects(text) as Record<string, unknown>[];
+
+    const messages: string[] = [];
+
+    for (const obj of objects) {
+      const type = obj.type as string | undefined;
+      if (type !== "user" && type !== "assistant") continue;
+
+      const msg = obj.message as Record<string, unknown> | undefined;
+      const content = msg?.content ?? obj.content;
+
+      let extracted = "";
+      if (typeof content === "string") {
+        extracted = content;
+      } else if (Array.isArray(content)) {
+        for (const block of content as Record<string, unknown>[]) {
+          if (block.type === "text" && typeof block.text === "string") {
+            extracted = block.text;
+          }
+        }
+      }
+
+      if (extracted) {
+        const prefix = type === "user" ? "User: " : "Assistant: ";
+        messages.push(prefix + extracted.slice(0, 200));
+      }
+    }
+
+    // Return the last 10 messages
+    return messages.slice(-10);
+  } finally {
+    await fh.close();
+  }
+}
