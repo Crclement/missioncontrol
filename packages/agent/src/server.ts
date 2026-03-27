@@ -120,7 +120,9 @@ async function enrichSession(
       raw.sessionId,
       recentMessages,
       partial.workType,
-      conversation.lastToolUse
+      conversation.lastToolUse,
+      conversation.lastUserMessage,
+      conversation.lastAssistantText
     );
   } catch {
     // Summarizer is optional - don't fail the whole enrichment
