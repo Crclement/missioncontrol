@@ -164,7 +164,7 @@ describe("SessionCard", () => {
       },
     });
     render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.getByPlaceholderText("respond...")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("speak with wispr flow...")).toBeInTheDocument();
   });
 
   it("does not render response input when not needing input", () => {
@@ -178,7 +178,7 @@ describe("SessionCard", () => {
       },
     });
     render(<SessionCard session={session} ref={null} {...defaultProps} />);
-    expect(screen.queryByPlaceholderText("respond...")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("speak with wispr flow...")).not.toBeInTheDocument();
   });
 
   it("applies focused border color when focused", () => {

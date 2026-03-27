@@ -125,6 +125,7 @@ export function Dashboard() {
                   ["1-9", "focus session by index"],
                   ["j / k", "move focus down / up"],
                   ["Enter", "open response input"],
+                  ["Tab", "switch voice / type mode"],
                   ["Escape", "close input / help / unfocus"],
                   ["r", "reconnect websocket"],
                   ["?", "toggle this help"],
