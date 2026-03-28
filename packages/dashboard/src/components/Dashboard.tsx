@@ -93,16 +93,16 @@ export function Dashboard() {
       </div>
 
       {/* Content area with padding */}
-      <div className="flex-1 overflow-hidden flex flex-col p-3 md:p-6 min-h-0">
+      <div className="flex-1 overflow-auto flex flex-col p-3 md:p-6 min-h-0">
 
         {/* Content */}
         {sortedSessions.length > 0 ? (
           viewMode === "grid" ? (
             <div
-              className="flex-1 grid gap-3 min-h-0"
+              className="grid gap-3"
               style={{
                 gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                gridTemplateRows: `repeat(${Math.ceil(count / cols)}, 1fr)`,
+                gridAutoRows: "minmax(180px, auto)",
               }}
             >
               {sortedSessions.map((session, i) => (
