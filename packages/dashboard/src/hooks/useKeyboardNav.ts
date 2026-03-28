@@ -48,8 +48,8 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
         return
       }
 
-      // If typing in an input, don't intercept other keys
-      if (isInput) return
+      // If typing in an input or input is open, don't intercept other keys
+      if (isInput || inputOpen) return
 
       if (e.key === "?") {
         e.preventDefault()
