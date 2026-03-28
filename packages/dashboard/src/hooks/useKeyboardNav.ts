@@ -134,36 +134,29 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
         return
       }
 
-      // Spacebar = open voice input (only for needs-input sessions)
+      // Spacebar = open voice input on any focused card
       if (e.key === " " && focusedIndex >= 0) {
-        const needs = sessionNeedsInput?.(focusedIndex) ?? false
-        if (needs) {
-          e.preventDefault()
-          setInputOpen(true)
-          setVoiceMode(true)
-          return
-        }
+        e.preventDefault()
+        setInputOpen(true)
+        setVoiceMode(true)
+        return
       }
 
-      // Any printable character on a needs-input card = open type mode
+      // Any printable character on a focused card = open type mode
       if (
         focusedIndex >= 0 &&
         e.key.length === 1 &&
         !e.metaKey && !e.ctrlKey && !e.altKey &&
         e.key !== " "
       ) {
-        const needs = sessionNeedsInput?.(focusedIndex) ?? false
-        if (needs) {
-          e.preventDefault()
-          setInputOpen(true)
-          setVoiceMode(false)
-          // Store the initial character so ResponseInput can pick it up
-          setInitialChar(e.key)
-          return
-        }
+        e.preventDefault()
+        setInputOpen(true)
+        setVoiceMode(false)
+        setInitialChar(e.key)
+        return
       }
 
-      // Enter: if session needs input, open type mode. Otherwise open terminal.
+      // Enter: if session needs input, open type mode. Otherwise open in Chrome.
       if (e.key === "Enter" && focusedIndex >= 0) {
         e.preventDefault()
         const needs = sessionNeedsInput?.(focusedIndex) ?? false

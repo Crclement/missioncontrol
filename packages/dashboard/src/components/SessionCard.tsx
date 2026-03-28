@@ -192,21 +192,17 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
             </div>
           )}
 
-          {/* Input area */}
-          {needsInput && isFocused && inputOpen ? (
+          {/* Input area — always available on focused card */}
+          {isFocused && inputOpen ? (
             <ResponseInput
               onSend={(msg) => onSendResponse(session.sessionId, session.configDir, msg)}
               autoFocus
               voiceMode={voiceMode}
               initialChar={initialChar}
             />
-          ) : isFocused && needsInput ? (
+          ) : isFocused ? (
             <div className="mt-3 text-sm font-mono font-bold animate-blink" style={{ color: "#fff" }}>
               ◆ Spacebar to speak ...or start typing
-            </div>
-          ) : isFocused ? (
-            <div className="mt-3 text-xs font-mono" style={{ color: "#666" }}>
-              Enter to open in Chrome
             </div>
           ) : null}
         </div>
