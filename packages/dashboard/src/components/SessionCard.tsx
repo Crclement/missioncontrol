@@ -206,7 +206,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
             </div>
           ) : isFocused ? (
             <div className="mt-3 text-xs font-mono" style={{ color: "#666" }}>
-              Enter to open in terminal
+              Enter to open in Chrome
             </div>
           ) : null}
         </div>

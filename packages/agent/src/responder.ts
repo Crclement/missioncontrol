@@ -1,26 +1,41 @@
 import { spawn, execSync } from "child_process"
 
-// Discover the correct claude binary
-let claudeBin: string | undefined
+// Find the actual claude binary (not shell aliases)
+let claudeBinPath: string | undefined
 
 function findClaudeBin(): string {
-  if (claudeBin) return claudeBin
+  if (claudeBinPath) return claudeBinPath
 
-  // Check common locations
-  const candidates = ["claude", "claude-crc", "claude-le"]
-  for (const bin of candidates) {
+  // Check the direct binary location first
+  const directPaths = [
+    "/Users/chrisclement/.local/bin/claude",
+    `${process.env.HOME}/.local/bin/claude`,
+    "/usr/local/bin/claude",
+  ]
+
+  for (const p of directPaths) {
     try {
-      execSync(`which ${bin}`, { encoding: "utf-8", timeout: 2000 })
-      claudeBin = bin
-      return bin
+      execSync(`test -x "${p}"`, { timeout: 1000 })
+      claudeBinPath = p
+      return p
     } catch {
       // not found
     }
   }
 
-  // Fallback: check if there's a CLAUDE_CONFIG_DIR env hint
-  claudeBin = "claude"
-  return claudeBin
+  // Fallback: use `which` to find it (may find alias wrapper)
+  try {
+    const result = execSync("which claude", { encoding: "utf-8", timeout: 2000 }).trim()
+    if (result) {
+      claudeBinPath = result
+      return result
+    }
+  } catch {
+    // not found
+  }
+
+  claudeBinPath = "claude"
+  return claudeBinPath
 }
 
 export async function respondToSession(
@@ -32,9 +47,14 @@ export async function respondToSession(
     try {
       const bin = findClaudeBin()
 
-      console.error(`[respond] Sending to ${sessionId} via ${bin} --resume --print`)
+      console.error(`[respond] ${bin} --resume ${sessionId.slice(0, 8)}... CLAUDE_CONFIG_DIR=${configDir}`)
 
-      const child = spawn(bin, ["--resume", sessionId, "--print", "--yes", "-p", message], {
+      const child = spawn(bin, [
+        "--resume", sessionId,
+        "--print",
+        "--yes",
+        "-p", message,
+      ], {
         env: {
           ...process.env,
           CLAUDE_CONFIG_DIR: configDir,
@@ -60,21 +80,20 @@ export async function respondToSession(
 
       child.on("close", (code) => {
         if (code === 0) {
-          console.error(`[respond] Success: ${stdout.slice(0, 100)}`)
+          console.error(`[respond] OK (${stdout.length} chars)`)
           resolve({ success: true })
         } else {
-          console.error(`[respond] Failed (code ${code}): ${stderr.slice(0, 200)}`)
+          console.error(`[respond] FAIL code=${code}: ${stderr.slice(0, 200)}`)
           resolve({
             success: false,
-            error: stderr.trim() || `Process exited with code ${code}`,
+            error: stderr.trim() || `exit code ${code}`,
           })
         }
       })
 
-      // Timeout after 120 seconds
       setTimeout(() => {
         child.kill("SIGTERM")
-        resolve({ success: false, error: "Response timed out after 120s" })
+        resolve({ success: false, error: "timeout 120s" })
       }, 120_000)
     } catch (err) {
       resolve({

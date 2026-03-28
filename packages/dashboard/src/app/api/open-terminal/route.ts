@@ -7,43 +7,49 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "missing cwd" }, { status: 400 })
   }
 
+  // Find a local dev server running in this project's directory
   try {
-    // Try to find and activate the Terminal.app window/tab running in this directory
-    // First, try to activate by matching the window title or tab
-    execSync(
-      `osascript -e '
-        tell application "Terminal"
-          activate
-          set found to false
-          repeat with w in windows
-            repeat with t in tabs of w
-              if tty of t is not "" then
-                try
-                  set tabProcesses to do shell script "lsof -p " & (processes of t as text) & " 2>/dev/null | grep cwd | head -1"
-                end try
-              end if
-            end repeat
-          end repeat
-        end tell
-      '`,
+    // Look for node processes with LISTEN ports whose cwd matches
+    const lsof = execSync(
+      `lsof -i -P -n 2>/dev/null | grep LISTEN | grep node`,
       { encoding: "utf-8", timeout: 3000 }
     )
-  } catch {
-    // Fallback: just activate Terminal.app
-    try {
-      execSync(`osascript -e 'tell application "Terminal" to activate'`, {
-        encoding: "utf-8",
-        timeout: 2000,
-      })
-    } catch {
-      // Last resort: open a new terminal at the cwd
+
+    const dirName = cwd.split("/").pop() ?? ""
+
+    for (const line of lsof.split("\n")) {
+      if (!line.trim()) continue
+      const parts = line.split(/\s+/)
+      const pid = parts[1]
+      if (!pid) continue
+
+      // Check if this process's cwd contains our project
       try {
-        execSync(`open -a Terminal "${cwd}"`, { timeout: 2000 })
+        const procCwd = execSync(`lsof -p ${pid} 2>/dev/null | grep cwd | awk '{print $NF}'`, {
+          encoding: "utf-8",
+          timeout: 2000,
+        }).trim()
+
+        if (procCwd.includes(dirName) || procCwd.includes(cwd)) {
+          // Extract port
+          const portMatch = line.match(/:(\d+)\s/)
+          if (portMatch) {
+            const port = portMatch[1]
+            // Don't open the mission control dashboard itself or the agent
+            if (port === "3005" || port === "45557") continue
+            const url = `http://localhost:${port}`
+            execSync(`open -a "Google Chrome" "${url}"`, { timeout: 2000 })
+            return NextResponse.json({ ok: true, url })
+          }
+        }
       } catch {
-        return NextResponse.json({ error: "could not open terminal" }, { status: 500 })
+        // skip this process
       }
     }
-  }
 
-  return NextResponse.json({ ok: true })
+    // No dev server found — just open the directory in Finder or Terminal
+    return NextResponse.json({ error: "no local server found for this project" }, { status: 404 })
+  } catch {
+    return NextResponse.json({ error: "could not find local servers" }, { status: 500 })
+  }
 }
