@@ -52,7 +52,7 @@ export async function respondToSession(
       const child = spawn(bin, [
         "--resume", sessionId,
         "--print",
-        "--yes",
+        "--dangerously-skip-permissions",
         "-p", message,
       ], {
         env: {
