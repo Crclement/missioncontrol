@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 
 export type ViewMode = "grid" | "orbital"
 
@@ -20,18 +20,21 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [initialChar, setInitialChar] = useState("")
 
+  // Use ref to avoid stale closure — this is the critical fix
+  const inputOpenRef = useRef(inputOpen)
+  inputOpenRef.current = inputOpen
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
       const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA"
 
-      // Escape ALWAYS works, even from inputs
+      // Escape ALWAYS works
       if (e.key === "Escape") {
         e.preventDefault()
-        if (inputOpen) {
+        if (inputOpenRef.current) {
           setInputOpen(false)
           setVoiceMode(false)
-          // Blur any focused input so arrow keys work again
           ;(document.activeElement as HTMLElement)?.blur()
           return
         }
@@ -39,8 +42,6 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
           setShowHelp(false)
           return
         }
-        // If we have a focused card, keep it focused (don't deselect)
-        // Press Escape again to fully deselect
         if (focusedIndex >= 0) {
           setFocusedIndex(-1)
           return
@@ -48,8 +49,8 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
         return
       }
 
-      // If typing in an input or input is open, don't intercept other keys
-      if (isInput || inputOpen) return
+      // If typing in an input element OR input panel is open, block all nav
+      if (isInput || inputOpenRef.current) return
 
       if (e.key === "?") {
         e.preventDefault()
@@ -73,12 +74,9 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
       if (num >= 1 && num <= 9 && num <= sessionCount) {
         e.preventDefault()
         setFocusedIndex(num - 1)
-        setInputOpen(false)
-        setVoiceMode(false)
         return
       }
 
-      // Left/Right: move within the row
       if (e.key === "ArrowRight" || e.key === "l") {
         e.preventDefault()
         setFocusedIndex((prev) => {
@@ -86,8 +84,6 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
           if (prev < 0) return 0
           return prev < sessionCount - 1 ? prev + 1 : 0
         })
-        setInputOpen(false)
-        setVoiceMode(false)
         return
       }
 
@@ -98,12 +94,9 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
           if (prev < 0) return 0
           return prev > 0 ? prev - 1 : sessionCount - 1
         })
-        setInputOpen(false)
-        setVoiceMode(false)
         return
       }
 
-      // Down/Up: jump by cols to move between rows
       if (e.key === "ArrowDown" || e.key === "j") {
         e.preventDefault()
         setFocusedIndex((prev) => {
@@ -112,8 +105,6 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
           const next = prev + cols
           return next < sessionCount ? next : prev % cols < sessionCount ? prev % cols : 0
         })
-        setInputOpen(false)
-        setVoiceMode(false)
         return
       }
 
@@ -129,12 +120,10 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
           const target = lastRowStart + col
           return target < sessionCount ? target : sessionCount - 1
         })
-        setInputOpen(false)
-        setVoiceMode(false)
         return
       }
 
-      // Spacebar = open voice input on any focused card
+      // Spacebar = open voice input
       if (e.key === " " && focusedIndex >= 0) {
         e.preventDefault()
         setInputOpen(true)
@@ -142,7 +131,20 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
         return
       }
 
-      // Any printable character on a focused card = open type mode
+      // Enter: needs-input → type mode, otherwise → open in Chrome
+      if (e.key === "Enter" && focusedIndex >= 0) {
+        e.preventDefault()
+        const needs = sessionNeedsInput?.(focusedIndex) ?? false
+        if (needs) {
+          setInputOpen(true)
+          setVoiceMode(false)
+        } else {
+          onEnterSession?.(focusedIndex)
+        }
+        return
+      }
+
+      // Any printable character = open type mode with that char
       if (
         focusedIndex >= 0 &&
         e.key.length === 1 &&
@@ -155,21 +157,8 @@ export function useKeyboardNav({ sessionCount, cols, onReconnect, onEnterSession
         setInitialChar(e.key)
         return
       }
-
-      // Enter: if session needs input, open type mode. Otherwise open in Chrome.
-      if (e.key === "Enter" && focusedIndex >= 0) {
-        e.preventDefault()
-        const needs = sessionNeedsInput?.(focusedIndex) ?? false
-        if (needs) {
-          setInputOpen(true)
-          setVoiceMode(false)
-        } else {
-          onEnterSession?.(focusedIndex)
-        }
-        return
-      }
     },
-    [sessionCount, cols, focusedIndex, showHelp, inputOpen, onReconnect, onEnterSession, sessionNeedsInput],
+    [sessionCount, cols, focusedIndex, showHelp, onReconnect, onEnterSession, sessionNeedsInput],
   )
 
   useEffect(() => {
