@@ -133,7 +133,7 @@ export async function readConversation(
           // Strip XML noise for display
           const clean = content.replace(/<[^>]+>[^]*?<\/[^>]+>/g, "").replace(/<[^>]+>/g, "").trim();
           if (clean.length > 5) {
-            const line = clean.length > 120 ? clean.slice(0, 117) + "..." : clean;
+            const line = clean;
             recentOutput.push(`> ${line}`);
           }
         } else if (Array.isArray(content)) {
@@ -142,7 +142,7 @@ export async function readConversation(
               lastUserMessage = part.text;
               const clean = (part.text as string).replace(/<[^>]+>[^]*?<\/[^>]+>/g, "").replace(/<[^>]+>/g, "").trim();
               if (clean.length > 5) {
-                const line = clean.length > 120 ? clean.slice(0, 117) + "..." : clean;
+                const line = clean;
                 recentOutput.push(`> ${line}`);
               }
             }
@@ -170,7 +170,7 @@ export async function readConversation(
           lastAssistantText = content;
           const trimmed = content.trim();
           if (trimmed.length > 0) {
-            const line = trimmed.length > 120 ? trimmed.slice(0, 117) + "..." : trimmed;
+            const line = trimmed;
             recentOutput.push(line);
           }
         } else if (Array.isArray(content)) {
@@ -179,7 +179,7 @@ export async function readConversation(
               lastAssistantText = block.text;
               const trimmed = (block.text as string).trim();
               if (trimmed.length > 0) {
-                const line = trimmed.length > 120 ? trimmed.slice(0, 117) + "..." : trimmed;
+                const line = trimmed;
                 recentOutput.push(line);
               }
             }
@@ -191,7 +191,7 @@ export async function readConversation(
               const desc = input?.description ?? input?.command ?? input?.pattern ?? input?.file_path ?? "";
               const descStr = typeof desc === "string" ? desc : "";
               const toolLine = descStr
-                ? `● ${block.name}: ${descStr.length > 80 ? (descStr as string).slice(0, 77) + "..." : descStr}`
+                ? `● ${block.name}: ${descStr}`
                 : `● ${block.name}`;
               recentOutput.push(toolLine);
             }

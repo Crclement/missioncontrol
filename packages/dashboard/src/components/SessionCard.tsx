@@ -142,7 +142,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
           {/* Title + creature */}
           <div className="flex items-start justify-between gap-3 mb-2">
             <div className="flex-1 min-w-0">
-              <h2 className="text-base font-mono font-bold truncate leading-tight">
+              <h2 className="text-base font-mono font-bold leading-tight">
                 {sessionName}
               </h2>
               <div className="text-xs font-mono mt-1" style={{ color: isFocused ? "#aaa" : "#888" }}>
@@ -162,7 +162,7 @@ export const SessionCard = forwardRef<HTMLDivElement, SessionCardProps>(
           >
             {session.conversation.recentOutput.length > 0 ? (
               session.conversation.recentOutput.map((line, i) => (
-                <div key={i} className="truncate" style={{
+                <div key={i} style={{
                   color: line.startsWith(">")
                     ? (isFocused ? "#888" : "#999")  // user messages dimmer
                     : line.startsWith("●")
