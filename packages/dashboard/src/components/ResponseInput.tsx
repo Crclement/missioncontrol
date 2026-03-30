@@ -17,10 +17,14 @@ export function ResponseInput({ onSend, autoFocus, voiceMode, initialChar }: Res
   const [typing, setTyping] = useState(!voiceMode)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Focus textarea on mount
+  // Focus textarea on mount and place cursor at end
   useEffect(() => {
     if (autoFocus && textareaRef.current) {
-      textareaRef.current.focus()
+      const ta = textareaRef.current
+      ta.focus()
+      // Place cursor at end of any initial text
+      const len = ta.value.length
+      ta.setSelectionRange(len, len)
     }
   }, [autoFocus, typing])
 

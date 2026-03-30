@@ -1,105 +1,79 @@
-import { spawn, execSync } from "child_process"
+import { execSync, spawn } from "child_process"
+import { writeFileSync } from "fs"
 
-// Find the actual claude binary (not shell aliases)
-let claudeBinPath: string | undefined
-
-function findClaudeBin(): string {
-  if (claudeBinPath) return claudeBinPath
-
-  // Check the direct binary location first
-  const directPaths = [
-    "/Users/chrisclement/.local/bin/claude",
-    `${process.env.HOME}/.local/bin/claude`,
-    "/usr/local/bin/claude",
-  ]
-
-  for (const p of directPaths) {
-    try {
-      execSync(`test -x "${p}"`, { timeout: 1000 })
-      claudeBinPath = p
-      return p
-    } catch {
-      // not found
-    }
-  }
-
-  // Fallback: use `which` to find it (may find alias wrapper)
-  try {
-    const result = execSync("which claude", { encoding: "utf-8", timeout: 2000 }).trim()
-    if (result) {
-      claudeBinPath = result
-      return result
-    }
-  } catch {
-    // not found
-  }
-
-  claudeBinPath = "claude"
-  return claudeBinPath
-}
-
+/**
+ * Send a message to a Claude Code session by writing to its TTY device.
+ * This simulates typing into the terminal where the session is running.
+ */
 export async function respondToSession(
   sessionId: string,
   configDir: string,
   message: string
 ): Promise<{ success: boolean; error?: string }> {
-  return new Promise((resolve) => {
-    try {
-      const bin = findClaudeBin()
+  try {
+    // Find the PID for this session
+    const sessionFiles = execSync(
+      `cat "${configDir}/sessions/"*.json 2>/dev/null`,
+      { encoding: "utf-8", timeout: 3000 }
+    )
 
-      console.error(`[respond] ${bin} --resume ${sessionId.slice(0, 8)}... CLAUDE_CONFIG_DIR=${configDir}`)
-
-      const child = spawn(bin, [
-        "--resume", sessionId,
-        "--print",
-        "--dangerously-skip-permissions",
-        "-p", message,
-      ], {
-        env: {
-          ...process.env,
-          CLAUDE_CONFIG_DIR: configDir,
-        },
-        stdio: ["pipe", "pipe", "pipe"],
-      })
-
-      let stdout = ""
-      let stderr = ""
-
-      child.stdout?.on("data", (chunk: Buffer) => {
-        stdout += chunk.toString()
-      })
-
-      child.stderr?.on("data", (chunk: Buffer) => {
-        stderr += chunk.toString()
-      })
-
-      child.on("error", (err) => {
-        console.error(`[respond] spawn error: ${err.message}`)
-        resolve({ success: false, error: err.message })
-      })
-
-      child.on("close", (code) => {
-        if (code === 0) {
-          console.error(`[respond] OK (${stdout.length} chars)`)
-          resolve({ success: true })
-        } else {
-          console.error(`[respond] FAIL code=${code}: ${stderr.slice(0, 200)}`)
-          resolve({
-            success: false,
-            error: stderr.trim() || `exit code ${code}`,
-          })
+    let pid: number | undefined
+    // Session files are concatenated, parse each JSON object
+    const jsonPattern = /\{[^{}]*"sessionId"\s*:\s*"[^"]*"[^{}]*\}/g
+    const matches = sessionFiles.match(jsonPattern) ?? []
+    for (const match of matches) {
+      try {
+        const obj = JSON.parse(match)
+        if (obj.sessionId === sessionId) {
+          pid = obj.pid
+          break
         }
-      })
-
-      setTimeout(() => {
-        child.kill("SIGTERM")
-        resolve({ success: false, error: "timeout 120s" })
-      }, 120_000)
-    } catch (err) {
-      resolve({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      })
+      } catch { /* skip */ }
     }
-  })
+
+    if (!pid) {
+      return { success: false, error: `No PID found for session ${sessionId.slice(0, 8)}` }
+    }
+
+    // Find the TTY device for this PID
+    let tty: string | undefined
+    try {
+      tty = execSync(
+        `lsof -p ${pid} 2>/dev/null | grep /dev/ttys | head -1 | awk '{print $NF}'`,
+        { encoding: "utf-8", timeout: 3000 }
+      ).trim()
+    } catch { /* */ }
+
+    if (!tty) {
+      return { success: false, error: `No TTY found for PID ${pid}` }
+    }
+
+    console.error(`[respond] Writing to ${tty} for PID ${pid}`)
+
+    // Write the message to the TTY device + newline to submit
+    // This simulates the user typing into that terminal
+    try {
+      writeFileSync(tty, message + "\n")
+      return { success: true }
+    } catch (err) {
+      // If direct write fails, try via python
+      try {
+        execSync(
+          `python3 -c "import os; fd=os.open('${tty}', os.O_WRONLY); os.write(fd, b'${message.replace(/'/g, "\\'")}\\n'); os.close(fd)"`,
+          { timeout: 3000 }
+        )
+        return { success: true }
+      } catch {
+        return {
+          success: false,
+          error: `Cannot write to ${tty}: ${err instanceof Error ? err.message : String(err)}`,
+        }
+      }
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
 }
