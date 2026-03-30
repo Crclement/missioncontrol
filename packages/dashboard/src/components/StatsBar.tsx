@@ -1,11 +1,13 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import type { EnrichedSession } from "@missioncontrol/shared"
 import type { ConnectionState } from "@/hooks/useAgent"
 
 interface StatsBarProps {
   sessions: EnrichedSession[]
   connectionState: ConnectionState
+  lastUpdated: number
 }
 
 function formatCost(cost: number): string {
@@ -18,7 +20,16 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-export function StatsBar({ sessions, connectionState }: StatsBarProps) {
+function formatAgo(ts: number): string {
+  if (ts === 0) return "never"
+  const sec = Math.floor((Date.now() - ts) / 1000)
+  if (sec < 2) return "live"
+  if (sec < 60) return `${sec}s ago`
+  return `${Math.floor(sec / 60)}m ago`
+}
+
+export function StatsBar({ sessions, connectionState, lastUpdated }: StatsBarProps) {
+  const [, setTick] = useState(0)
   const activeSessions = sessions.filter((s) => s.alive).length
   const totalTokens = sessions.reduce(
     (sum, s) => sum + (s.conversation.tokenUsage?.totalTokens ?? 0),
@@ -29,16 +40,26 @@ export function StatsBar({ sessions, connectionState }: StatsBarProps) {
     0,
   )
 
+  // Tick every second to keep "Xs ago" fresh
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   const isConnected = connectionState === "connected"
+  const ago = formatAgo(lastUpdated)
+  const isLive = ago === "live"
 
   return (
-    <div className="flex items-center gap-6 text-sm font-mono text-secondary">
+    <div className="flex items-center gap-6 text-xs font-mono text-secondary">
       <span className="inline-flex items-center gap-2">
         <span
           className="inline-block w-2 h-2"
-          style={{ backgroundColor: isConnected ? "#000" : "#888" }}
+          style={{ backgroundColor: isConnected ? (isLive ? "#000" : "#888") : "#888" }}
         />
-        <span style={{ color: isConnected ? "#000" : "#888" }}>{connectionState}</span>
+        <span style={{ color: isConnected ? "#000" : "#888" }}>
+          {isConnected ? ago : connectionState}
+        </span>
       </span>
 
       <span>

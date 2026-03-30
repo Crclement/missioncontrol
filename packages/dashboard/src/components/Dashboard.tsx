@@ -8,7 +8,7 @@ import { SessionCard } from "./SessionCard"
 import { OrbitalView } from "./OrbitalView"
 
 export function Dashboard() {
-  const { sessions, connectionState, sendResponse, reconnect } = useAgent()
+  const { sessions, connectionState, sendResponse, reconnect, lastUpdated } = useAgent()
 
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => {
@@ -89,7 +89,7 @@ export function Dashboard() {
             </button>
           </div>
         </div>
-        <StatsBar sessions={sortedSessions} connectionState={connectionState} />
+        <StatsBar sessions={sortedSessions} connectionState={connectionState} lastUpdated={lastUpdated} />
       </div>
 
       {/* Content area with padding */}

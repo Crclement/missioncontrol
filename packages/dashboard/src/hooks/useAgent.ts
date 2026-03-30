@@ -12,6 +12,7 @@ const BASE_BACKOFF_MS = 1_000
 export function useAgent() {
   const [sessions, setSessions] = useState<EnrichedSession[]>([])
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected")
+  const [lastUpdated, setLastUpdated] = useState<number>(0)
   const wsRef = useRef<WebSocket | null>(null)
   const backoffRef = useRef(BASE_BACKOFF_MS)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -36,6 +37,7 @@ export function useAgent() {
         switch (msg.type) {
           case "sessions":
             setSessions(msg.data)
+            setLastUpdated(Date.now())
             break
 
           case "session-update":
@@ -46,6 +48,7 @@ export function useAgent() {
               next[idx] = msg.data
               return next
             })
+            setLastUpdated(Date.now())
             break
 
           case "session-removed":
@@ -114,5 +117,5 @@ export function useAgent() {
     }
   }, [connect])
 
-  return { sessions, connectionState, sendResponse, reconnect }
+  return { sessions, connectionState, sendResponse, reconnect, lastUpdated }
 }
