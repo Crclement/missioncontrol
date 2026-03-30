@@ -254,8 +254,8 @@ async function main() {
     }
   }, 30_000);
 
-  // Periodic refresh every 3s
-  setInterval(refresh, 3000);
+  // Safety net — only if watcher misses something (should be rare now)
+  setInterval(refresh, 10_000);
 
   // Handle WebSocket connections
   wss.on("connection", async (ws: WebSocket) => {
